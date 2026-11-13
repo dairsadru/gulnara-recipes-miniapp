@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Вкусно с Гульнарой</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  /* Ginger cream — палитра Dairbek */
+  --cream:#F7F3EA; --card:#FFFCF7; --text:#1B2E26; --ginger:#B5542B; --sage:#6B7F5A;
+  --bg:var(--tg-theme-bg-color,var(--cream)); --fg:var(--tg-theme-text-color,var(--text));
+  --hint:var(--tg-theme-hint-color,var(--sage));
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+/* светлая тема Telegram — фирменные кремовые цвета; тёмная — цвета Telegram с имбирным акцентом */
+html.light{--bg:var(--cream);--fg:var(--text);--cardbg:var(--card);--hint:var(--sage)}
+html.dark{--cardbg:var(--tg-theme-secondary-bg-color,#1f2a24)}
+*{box-sizing:border-box}
+body{margin:0;padding:16px 16px 96px;background:var(--bg);color:var(--fg);font:15px/1.45 var(--font)}
+header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+header h1{font-size:20px;margin:0;font-weight:700}
+.pill{display:inline-block;font-size:12px;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--sage) 18%,transparent);color:var(--sage);font-weight:600}
+.card{background:var(--cardbg,var(--card));border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(27,46,38,.08)}
+.card h2{font-size:15px;margin:0 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid color-mix(in srgb,var(--ginger) 45%,transparent);background:transparent;color:var(--fg);border-radius:999px;padding:7px 13px;font:inherit;cursor:pointer}
+.chip.on{background:var(--ginger);border-color:var(--ginger);color:#fff}
+textarea,input{width:100%;border:1.5px solid color-mix(in srgb,var(--sage) 40%,transparent);border-radius:12px;padding:10px;font:inherit;background:transparent;color:var(--fg);resize:vertical}
+.row{display:flex;gap:8px;margin-top:10px}
+.btn{flex:1;border:0;border-radius:12px;padding:12px;font:600 15px var(--font);cursor:pointer;background:var(--ginger);color:#fff}
+.btn.sec{background:color-mix(in srgb,var(--ginger) 12%,transparent);color:var(--ginger)}
+.hint{color:var(--hint);font-size:13px;margin:6px 0 0}
+.links{display:flex;gap:8px}
+.links button{flex:1;border:1.5px solid var(--sage);background:transparent;color:var(--fg);border-radius:12px;padding:10px;font:inherit;cursor:pointer}
+#recipe img{width:100%;border-radius:12px;margin-bottom:8px}
+#recipe ol{padding-left:20px;margin:6px 0} #recipe ul{padding-left:18px;margin:6px 0}
+.hidden{display:none}
+</style></head><body>
+<header>
+  <svg width="40" height="40" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 38c-4-6 0-14 7-14 2-6 10-8 15-4 6-3 14 1 14 8 6 2 7 11 1 14-2 5-9 6-13 3-4 4-12 3-14-2-6 1-11-1-10-5z" fill="#B5542B" stroke="#8E3F1F" stroke-width="2"/>
+    <path d="M28 30c2 3 6 4 9 2M40 36c2 1 4 0 5-2" stroke="#F7F3EA" stroke-width="2"/>
+    <path d="M36 20c1-5 4-8 9-9-1 5-4 8-9 9z" fill="#6B7F5A" stroke="#4F6043" stroke-width="1.5"/></g></svg>
+  <div><h1>Вкусно с Гульнарой</h1><span class="pill">Халяль-рецепты</span></div>
+</header>
+
+<section class="card"><h2>Кухня</h2><div class="chips" id="cuisines"></div>
+  <div class="chips hidden" id="peoples" style="margin-top:10px"></div></section>
+
+<section class="card"><h2>Калорийность порции</h2><div class="chips" id="kcal"></div></section>
+
+<section class="card"><h2>Какие продукты у вас есть?</h2>
+  <textarea id="products" rows="3" placeholder="Например: курица, рис, морковь"></textarea>
+  <p class="hint">Вода, соль и чёрный перец считаются всегда доступными. Рецепт придёт в чат.</p>
+  <div class="row"><button class="btn" id="go">Подобрать рецепт</button></div>
+</section>
+
+<section class="card" id="recipe-card"><h2>Последний рецепт</h2>
+  <div id="recipe"><p class="hint">Рецепт приходит в чат — там его можно переслать близким.</p></div>
+  <div class="row"><button class="btn sec" id="more">Ещё вариант</button><button class="btn sec" id="wo">Без …</button></div>
+  <div class="row hidden" id="wo-row"><input id="wo-item" placeholder="Без какого продукта?"><button class="btn" id="wo-go" style="flex:0 0 auto">OK</button></div>
+</section>
+
+<section class="card"><h2>Гульнара</h2><div class="links">
+  <button id="wa">Написать в WhatsApp</button><button id="ch">Канал «Золото в каплях»</button></div></section>
+
+<script>
+const tg = window.Telegram && Telegram.WebApp;
+// Список совпадает с settings/cuisines.yaml (бот проверяет значения у себя).
+const CUISINES = ["Кавказская","Итальянская","Турецкая","Японская","Грузинская","Узбекская","Дагестанская","Похудение и ЗОЖ",
+  "Испанская","Китайская","Корейская","Тайская","Индийская","Арабская/Ближний Восток","Мексиканская","Бразильская",
+  "Французская","Греческая","Американская","Любая"];
+const PEOPLES = ["аварская","даргинская","кумыкская","лезгинская","лакская","табасаранская","ногайская","рутульская",
+  "цахурская","агульская","татская","азербайджанская"];
+const KCAL = [["","любая"],["lt300","до 300 ккал"],["300_500","300–500"],["gt500","500+"]];
+let cuisine = "Любая", people = "", kcal = "";
+// API (показ рецепта внутри приложения) — только если задан ?api=https://... ; по умолчанию его нет.
+const API = new URLSearchParams(location.search).get("api") || "";
+function applyTheme(){ document.documentElement.className = (tg && tg.colorScheme === "dark") ? "dark" : "light"; }
+if (tg){ tg.ready(); tg.expand(); applyTheme(); tg.onEvent("themeChanged", applyTheme); }
+const box = document.getElementById("cuisines");
+function chips(el, items, isOn, pick){
+  items.forEach(([val, label]) => { const b = document.createElement("button"); b.className = "chip" + (isOn(val) ? " on" : ""); b.textContent = label;
+    b.onclick = () => { pick(val); [...el.children].forEach(x => x.classList.toggle("on", x === b)); tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged(); };
+    el.appendChild(b); });
+}
+const pbox = document.getElementById("peoples");
+chips(box, CUISINES.map(c => [c, c]), v => v === cuisine, v => { cuisine = v; people = ""; pbox.classList.toggle("hidden", v !== "Дагестанская"); });
+chips(pbox, PEOPLES.map(p => [p, p[0].toUpperCase() + p.slice(1)]), v => false, v => { people = v; });
+chips(document.getElementById("kcal"), KCAL, v => v === kcal, v => { kcal = v; });
+function send(obj){
+  const data = JSON.stringify(Object.assign({cuisine, people, kcal, healthy: cuisine === "Похудение и ЗОЖ"}, obj));
+  if (!tg || !tg.sendData){ alert("Откройте приложение из Telegram"); return; }
+  // sendData работает, когда приложение открыто кнопкой клавиатуры в чате с ботом; приложение закроется, рецепт придёт в чат.
+  try { tg.sendData(data); } catch(e){ tg.showAlert("Откройте приложение кнопкой внизу чата с ботом."); }
+}
+document.getElementById("go").onclick = () => {
+  const p = document.getElementById("products").value.trim();
+  if (!p){ tg ? tg.showAlert("Напишите, какие продукты у вас есть.") : alert("Напишите продукты"); return; }
+  send({a:"recipe", products:p.slice(0,500)}); };
+document.getElementById("more").onclick = () => send({a:"more"});
+document.getElementById("wo").onclick = () => document.getElementById("wo-row").classList.toggle("hidden");
+document.getElementById("wo-go").onclick = () => { const x = document.getElementById("wo-item").value.trim(); if (x) send({a:"without", item:x.slice(0,60)}); };
+document.getElementById("wa").onclick = () => tg ? tg.openLink("https://wa.me/79896506090") : location.href = "https://wa.me/79896506090";
+document.getElementById("ch").onclick = () => tg ? tg.openTelegramLink("https://t.me/Naturalnie_Masla") : location.href = "https://t.me/Naturalnie_Masla";
+// Необязательный режим с бэкендом: GET {API}/last с initData — показывает последний рецепт с картинкой.
+if (API && tg && tg.initData){
+  fetch(API.replace(/\/$/,"") + "/last", {headers:{"X-Telegram-Init-Data": tg.initData}}).then(r => r.ok ? r.json() : null).then(d => {
+    if (!d || !d.title) return;
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+    document.getElementById("recipe").innerHTML = (d.image ? `<img src="${esc(d.image)}" alt="">` : "") +
+      `<b>${esc(d.title)}</b><ul>${(d.ingredients||[]).map(i => `<li>${esc(i.name)} — ${esc(i.amount||"")}</li>`).join("")}</ul>` +
+      `<ol>${(d.steps||[]).map(s => `<li>${esc(s)}</li>`).join("")}</ol>`;
+  }).catch(()=>{});
+}
+</script></body></html>
