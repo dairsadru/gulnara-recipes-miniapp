@@ -1,115 +1,381 @@
 <!doctype html>
-<html lang="ru"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
 <title>Вкусно с Гульнарой</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root{
-  /* Ginger cream — палитра Dairbek */
-  --cream:#F7F3EA; --card:#FFFCF7; --text:#1B2E26; --ginger:#B5542B; --sage:#6B7F5A;
-  --bg:var(--tg-theme-bg-color,var(--cream)); --fg:var(--tg-theme-text-color,var(--text));
-  --hint:var(--tg-theme-hint-color,var(--sage));
-  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  /* Ginger cream: кремовый фон, имбирный акцент, тёмно-коричневый текст */
+  --bg:#FBF6EE; --surface:#FFFFFF; --surface-2:#F6EEE3; --line:#ECE1D2;
+  --ink:#3B2A1F; --muted:#8C7666; --accent:#C2652A; --accent-press:#A85320;
+  --accent-soft:#F8E6D6; --accent-ink:#FFFFFF; --ok:#5E7A4E; --danger:#B3402A;
+  --shadow:0 1px 2px rgba(59,42,31,.05),0 6px 20px rgba(59,42,31,.06);
+  --r-sm:10px; --r-md:14px; --r-lg:20px; --r-pill:999px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px;
+  --font:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  /* безопасные зоны: системные + Telegram (переменные ставит telegram-web-app.js) */
+  --safe-top:max(env(safe-area-inset-top,0px), calc(var(--tg-safe-area-inset-top,0px) + var(--tg-content-safe-area-inset-top,0px)));
+  --safe-bottom:max(env(safe-area-inset-bottom,0px), calc(var(--tg-safe-area-inset-bottom,0px) + var(--tg-content-safe-area-inset-bottom,0px)));
 }
-/* светлая тема Telegram — фирменные кремовые цвета; тёмная — цвета Telegram с имбирным акцентом */
-html.light{--bg:var(--cream);--fg:var(--text);--cardbg:var(--card);--hint:var(--sage)}
-html.dark{--cardbg:var(--tg-theme-secondary-bg-color,#1f2a24)}
-*{box-sizing:border-box}
-body{margin:0;padding:16px 16px 96px;background:var(--bg);color:var(--fg);font:15px/1.45 var(--font)}
-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-header h1{font-size:20px;margin:0;font-weight:700}
-.pill{display:inline-block;font-size:12px;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--sage) 18%,transparent);color:var(--sage);font-weight:600}
-.card{background:var(--cardbg,var(--card));border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(27,46,38,.08)}
-.card h2{font-size:15px;margin:0 0 10px}
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{border:1.5px solid color-mix(in srgb,var(--ginger) 45%,transparent);background:transparent;color:var(--fg);border-radius:999px;padding:7px 13px;font:inherit;cursor:pointer}
-.chip.on{background:var(--ginger);border-color:var(--ginger);color:#fff}
-textarea,input{width:100%;border:1.5px solid color-mix(in srgb,var(--sage) 40%,transparent);border-radius:12px;padding:10px;font:inherit;background:transparent;color:var(--fg);resize:vertical}
-.row{display:flex;gap:8px;margin-top:10px}
-.btn{flex:1;border:0;border-radius:12px;padding:12px;font:600 15px var(--font);cursor:pointer;background:var(--ginger);color:#fff}
-.btn.sec{background:color-mix(in srgb,var(--ginger) 12%,transparent);color:var(--ginger)}
-.hint{color:var(--hint);font-size:13px;margin:6px 0 0}
-.links{display:flex;gap:8px}
-.links button{flex:1;border:1.5px solid var(--sage);background:transparent;color:var(--fg);border-radius:12px;padding:10px;font:inherit;cursor:pointer}
-#recipe img{width:100%;border-radius:12px;margin-bottom:8px}
-#recipe ol{padding-left:20px;margin:6px 0} #recipe ul{padding-left:18px;margin:6px 0}
-.hidden{display:none}
-</style></head><body>
-<header>
-  <svg width="40" height="40" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M14 38c-4-6 0-14 7-14 2-6 10-8 15-4 6-3 14 1 14 8 6 2 7 11 1 14-2 5-9 6-13 3-4 4-12 3-14-2-6 1-11-1-10-5z" fill="#B5542B" stroke="#8E3F1F" stroke-width="2"/>
-    <path d="M28 30c2 3 6 4 9 2M40 36c2 1 4 0 5-2" stroke="#F7F3EA" stroke-width="2"/>
-    <path d="M36 20c1-5 4-8 9-9-1 5-4 8-9 9z" fill="#6B7F5A" stroke="#4F6043" stroke-width="1.5"/></g></svg>
-  <div><h1>Вкусно с Гульнарой</h1><span class="pill">Халяль-рецепты</span></div>
-</header>
+html.dark{
+  --bg:#1E1915; --surface:#2A231D; --surface-2:#332A23; --line:#3E342C;
+  --ink:#F5ECE2; --muted:#B5A394; --accent:#E07B3C; --accent-press:#C9682C;
+  --accent-soft:#4A3324; --shadow:none;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+/* страница не ездит по горизонтали: без горизонтальной прокрутки, без «резинки», без зума */
+html,body{margin:0;background:var(--bg);color:var(--ink);width:100%;max-width:100%;
+  overflow-x:hidden;overflow-x:clip;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{touch-action:pan-y;position:relative}
+.wrap,.card,.chips,.head>div{min-width:0;max-width:100%}
+.wrap{overflow-wrap:anywhere}
+body{font:400 15px/1.5 var(--font);-webkit-font-smoothing:antialiased;
+  padding:calc(var(--safe-top) + var(--s5)) var(--s4) calc(var(--safe-bottom) + 112px)}
+.wrap{max-width:440px;margin:0 auto}
+button{font:inherit;color:inherit}
 
-<section class="card"><h2>Кухня</h2><div class="chips" id="cuisines"></div>
-  <div class="chips hidden" id="peoples" style="margin-top:10px"></div></section>
+/* шапка */
+.head{display:flex;align-items:center;gap:var(--s3);margin:0 var(--s1) var(--s6)}
+.logo{flex:0 0 48px;height:48px;border-radius:var(--r-md);background:var(--accent-soft);display:grid;place-items:center}
+.head h1{margin:0;font-size:22px;line-height:1.2;font-weight:700;letter-spacing:-.01em}
+.head p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.badge{display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:12px;font-weight:600;color:var(--ok);
+  background:color-mix(in srgb,var(--ok) 12%,transparent);padding:2px 8px;border-radius:var(--r-pill)}
 
-<section class="card"><h2>Калорийность порции</h2><div class="chips" id="kcal"></div></section>
+/* карточки */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--s5) var(--s4);margin-bottom:var(--s3);box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:baseline;gap:var(--s2);margin:0 0 var(--s3)}
+.step{flex:0 0 22px;height:22px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:12px;font-weight:700;display:grid;place-items:center;transform:translateY(-1px)}
+.card-h h2{margin:0;font-size:17px;font-weight:650;letter-spacing:-.005em}
+.card-h .opt{margin-left:auto;font-size:13px;color:var(--muted)}
+.hint{margin:var(--s2) 0 0;font-size:13px;color:var(--muted)}
 
-<section class="card"><h2>Какие продукты у вас есть?</h2>
-  <textarea id="products" rows="3" placeholder="Например: курица, рис, морковь"></textarea>
-  <p class="hint">Вода, соль и чёрный перец считаются всегда доступными. Рецепт придёт в чат.</p>
-  <div class="row"><button class="btn" id="go">Подобрать рецепт</button></div>
-</section>
+/* поле продуктов */
+textarea,input[type=text]{width:100%;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink);
+  border-radius:var(--r-md);padding:var(--s3) 14px;font:inherit;font-size:16px;outline:none;transition:border-color .15s,background .15s}
+textarea{min-height:84px;resize:none}
+textarea::placeholder,input::placeholder{color:var(--muted)}
+textarea:focus,input:focus{border-color:var(--accent);background:var(--surface)}
+.field-err textarea{border-color:var(--danger)}
 
-<section class="card" id="recipe-card"><h2>Последний рецепт</h2>
-  <div id="recipe"><p class="hint">Рецепт приходит в чат — там его можно переслать близким.</p></div>
-  <div class="row"><button class="btn sec" id="more">Ещё вариант</button><button class="btn sec" id="wo">Без …</button></div>
-  <div class="row hidden" id="wo-row"><input id="wo-item" placeholder="Без какого продукта?"><button class="btn" id="wo-go" style="flex:0 0 auto">OK</button></div>
-</section>
+/* чипы */
+.chips{display:flex;flex-wrap:wrap;gap:var(--s2)}
+.chip{appearance:none;border:1.5px solid var(--line);background:var(--surface);border-radius:var(--r-pill);
+  padding:7px 14px;font-size:14px;font-weight:500;line-height:20px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.chip:active{transform:scale(.97)}
+.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip[aria-pressed=true]::before{content:"";width:14px;height:14px;background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat}
+.chip.more{border-style:dashed;color:var(--muted)}
+.sub{margin-top:var(--s3);padding:var(--s3);border-radius:var(--r-md);background:var(--surface-2)}
+.sub .label{font-size:13px;color:var(--muted);margin:0 0 var(--s2)}
+.sub .chip{background:var(--surface)}
+.sub .chip[aria-pressed=true]{background:var(--accent)}
 
-<section class="card"><h2>Гульнара</h2><div class="links">
-  <button id="wa">Написать в WhatsApp</button><button id="ch">Канал «Золото в каплях»</button></div></section>
+/* сегменты калорий */
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:4px;background:var(--surface-2);border-radius:var(--r-md)}
+.seg button{appearance:none;border:0;background:transparent;border-radius:var(--r-sm);padding:9px 4px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+.seg button[aria-pressed=true]{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(59,42,31,.12)}
+
+/* вторичные кнопки */
+.row{display:flex;gap:var(--s2)}
+.btn2{flex:1;appearance:none;border:0;border-radius:var(--r-md);padding:12px;font-size:15px;font-weight:600;cursor:pointer;
+  background:var(--accent-soft);color:var(--accent);transition:transform .1s,opacity .15s}
+.btn2:active{transform:scale(.98)}
+.wo{display:none;gap:var(--s2);margin-top:var(--s3)}
+.wo.open{display:flex}
+.wo .btn2{flex:0 0 auto;padding:0 18px;background:var(--accent);color:var(--accent-ink)}
+
+/* ссылки */
+.links{display:grid;gap:var(--s2)}
+.link{display:flex;align-items:center;gap:var(--s3);padding:var(--s3);border-radius:var(--r-md);background:var(--surface-2);
+  text-decoration:none;color:var(--ink);font-weight:500;cursor:pointer;border:0;width:100%;text-align:left}
+.link .ic{flex:0 0 36px;height:36px;border-radius:10px;display:grid;place-items:center;color:#fff;font-size:16px;font-weight:700}
+.link small{display:block;color:var(--muted);font-weight:400;font-size:13px}
+.link .arr{margin-left:auto;color:var(--muted)}
+.foot{text-align:center;color:var(--muted);font-size:12px;margin:var(--s4) 0 0}
+
+/* главная кнопка — всегда внизу */
+.bar{position:fixed;left:0;right:0;bottom:0;padding:var(--s3) var(--s4) calc(var(--safe-bottom) + var(--s3));
+  background:linear-gradient(to top,var(--bg) 70%,color-mix(in srgb,var(--bg) 0%,transparent));z-index:5}
+.primary{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;max-width:440px;margin:0 auto;min-height:54px;
+  appearance:none;border:0;border-radius:var(--r-lg);background:var(--accent);color:var(--accent-ink);font-size:17px;font-weight:650;
+  cursor:pointer;box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 35%,transparent);transition:background .15s,transform .1s}
+.primary:active{background:var(--accent-press);transform:scale(.99)}
+.primary[disabled]{opacity:.8;cursor:default}
+.spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite;display:none}
+.primary.busy .spin{display:inline-block}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* всплывающее сообщение */
+.toast{position:fixed;left:50%;bottom:calc(var(--safe-bottom) + 86px);transform:translate(-50%,12px);opacity:0;pointer-events:none;
+  max-width:min(92vw,400px);width:max-content;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:var(--r-md);
+  font-size:14px;line-height:1.4;text-align:center;transition:all .2s;z-index:10;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.err{background:var(--danger);color:#fff}
+
+#recipe img{width:100%;border-radius:var(--r-md);margin-bottom:var(--s2)}
+#recipe ol,#recipe ul{padding-left:20px;margin:6px 0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div class="logo" aria-hidden="true">
+      <svg width="30" height="30" viewBox="0 0 64 64"><g fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 38c-4-6 0-14 7-14 2-6 10-8 15-4 6-3 14 1 14 8 6 2 7 11 1 14-2 5-9 6-13 3-4 4-12 3-14-2-6 1-11-1-10-5z" fill="#C2652A" stroke="#9A4A1C" stroke-width="2"/>
+        <path d="M28 30c2 3 6 4 9 2M40 36c2 1 4 0 5-2" stroke="#FBF6EE" stroke-width="2"/>
+        <path d="M36 20c1-5 4-8 9-9-1 5-4 8-9 9z" fill="#6F8A5C" stroke="#56704A" stroke-width="1.5"/></g></svg>
+    </div>
+    <div>
+      <h1>Вкусно с Гульнарой</h1>
+      <p>Рецепт из продуктов, которые у вас есть</p>
+      <span class="badge">✓ Халяль</span>
+    </div>
+  </header>
+
+  <section class="card" id="prod-card">
+    <div class="card-h"><span class="step">1</span><h2>Какие продукты у вас есть?</h2></div>
+    <textarea id="products" rows="3" maxlength="500" placeholder="Например: курица, рис, морковь, лук"></textarea>
+    <p class="hint">Вода, соль и перец есть всегда — их писать не нужно.</p>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><span class="step">2</span><h2>Кухня</h2></div>
+    <div class="chips" id="cuisines" role="group" aria-label="Кухня"></div>
+    <div class="sub" id="peoples-box" hidden>
+      <p class="label">Кухня какого народа Дагестана?</p>
+      <div class="chips" id="peoples" role="group" aria-label="Народ"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><span class="step">3</span><h2>Калорийность порции</h2></div>
+    <div class="seg" id="kcal" role="group" aria-label="Калорийность"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><h2>Уже получили рецепт?</h2></div>
+    <div id="recipe"></div>
+    <div class="row">
+      <button class="btn2" id="more" type="button">Ещё вариант</button>
+      <button class="btn2" id="wo" type="button">Без …</button>
+    </div>
+    <div class="wo" id="wo-row">
+      <input type="text" id="wo-item" maxlength="60" placeholder="Без какого продукта?">
+      <button class="btn2" id="wo-go" type="button">OK</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><h2>Гульнара</h2></div>
+    <div class="links">
+      <button class="link" type="button" data-href="https://wa.me/79896506090">
+        <span class="ic" style="background:#25A35A">W</span><span>Написать в WhatsApp<small>+7 989 650-60-90</small></span><span class="arr">›</span></button>
+      <button class="link" type="button" data-href="https://t.me/sadrugu">
+        <span class="ic" style="background:#2A9BD8">T</span><span>Написать в Telegram<small>@sadrugu</small></span><span class="arr">›</span></button>
+      <button class="link" type="button" data-href="https://t.me/Naturalnie_Masla">
+        <span class="ic" style="background:#C9962B">●</span><span>Канал «Золото в каплях»<small>натуральные масла</small></span><span class="arr">›</span></button>
+    </div>
+    <p class="foot">Поделитесь рецептом с близкими 🤍</p>
+  </section>
+</div>
+
+<div class="bar"><button class="primary" id="go" type="button"><span class="spin" aria-hidden="true"></span><span id="go-txt">Подобрать рецепт</span></button></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
-const tg = window.Telegram && Telegram.WebApp;
-// Список совпадает с settings/cuisines.yaml (бот проверяет значения у себя).
-const CUISINES = ["Кавказская","Итальянская","Турецкая","Японская","Грузинская","Узбекская","Дагестанская","Похудение и ЗОЖ",
+(function(){
+"use strict";
+var BOT = "gulnara_recbot";
+var tg = (window.Telegram && window.Telegram.WebApp) || null;
+var inTelegram = !!(tg && tg.platform && tg.platform !== "unknown");
+
+// Порядок списков важен: бот расшифровывает ссылку по номерам (см. bot_start_payload.patch).
+var CUISINES = ["Любая","Кавказская","Дагестанская","Похудение и ЗОЖ","Итальянская","Турецкая","Японская","Грузинская","Узбекская",
   "Испанская","Китайская","Корейская","Тайская","Индийская","Арабская/Ближний Восток","Мексиканская","Бразильская",
-  "Французская","Греческая","Американская","Любая"];
-const PEOPLES = ["аварская","даргинская","кумыкская","лезгинская","лакская","табасаранская","ногайская","рутульская",
+  "Французская","Греческая","Американская"];
+var VISIBLE = 9; // остальные — под кнопкой «Ещё кухни»
+var PEOPLES = ["аварская","даргинская","кумыкская","лезгинская","лакская","табасаранская","ногайская","рутульская",
   "цахурская","агульская","татская","азербайджанская"];
-const KCAL = [["","любая"],["lt300","до 300 ккал"],["300_500","300–500"],["gt500","500+"]];
-let cuisine = "Любая", people = "", kcal = "";
-// API (показ рецепта внутри приложения) — только если задан ?api=https://... ; по умолчанию его нет.
-const API = new URLSearchParams(location.search).get("api") || "";
-function applyTheme(){ document.documentElement.className = (tg && tg.colorScheme === "dark") ? "dark" : "light"; }
-if (tg){ tg.ready(); tg.expand(); applyTheme(); tg.onEvent("themeChanged", applyTheme); }
-const box = document.getElementById("cuisines");
-function chips(el, items, isOn, pick){
-  items.forEach(([val, label]) => { const b = document.createElement("button"); b.className = "chip" + (isOn(val) ? " on" : ""); b.textContent = label;
-    b.onclick = () => { pick(val); [...el.children].forEach(x => x.classList.toggle("on", x === b)); tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged(); };
-    el.appendChild(b); });
+var KCAL = [["","Любая"],["lt300","до 300"],["300_500","300–500"],["gt500","500+"]];
+var state = {cuisine:"Любая", people:"", kcal:""};
+var API = new URLSearchParams(location.search).get("api") || "";
+var $ = function(id){ return document.getElementById(id); };
+
+/* ---------- Telegram: тема и безопасные зоны ---------- */
+function applyTheme(){ document.documentElement.className = (tg && inTelegram && tg.colorScheme === "dark") ? "dark" : "light"; }
+function safeCall(fn){ try { return fn(); } catch(e){ console.warn("[miniapp]", e && e.message); } }
+if (tg && inTelegram){
+  safeCall(function(){ tg.ready(); });
+  safeCall(function(){ tg.expand(); });
+  // Telegram 7.7+: не закрывать/не тянуть окно жестом при прокрутке
+  safeCall(function(){ if (tg.isVersionAtLeast && tg.isVersionAtLeast("7.7") && tg.disableVerticalSwipes) tg.disableVerticalSwipes(); });
+  safeCall(function(){ if (tg.isVersionAtLeast && tg.isVersionAtLeast("6.1")){ tg.setHeaderColor && tg.setHeaderColor(getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || "#FBF6EE"); } });
+  safeCall(function(){ tg.onEvent("themeChanged", applyTheme); });
 }
-const pbox = document.getElementById("peoples");
-chips(box, CUISINES.map(c => [c, c]), v => v === cuisine, v => { cuisine = v; people = ""; pbox.classList.toggle("hidden", v !== "Дагестанская"); });
-chips(pbox, PEOPLES.map(p => [p, p[0].toUpperCase() + p.slice(1)]), v => false, v => { people = v; });
-chips(document.getElementById("kcal"), KCAL, v => v === kcal, v => { kcal = v; });
-function send(obj){
-  const data = JSON.stringify(Object.assign({cuisine, people, kcal, healthy: cuisine === "Похудение и ЗОЖ"}, obj));
-  if (!tg || !tg.sendData){ alert("Откройте приложение из Telegram"); return; }
-  // sendData работает, когда приложение открыто кнопкой клавиатуры в чате с ботом; приложение закроется, рецепт придёт в чат.
-  try { tg.sendData(data); } catch(e){ tg.showAlert("Откройте приложение кнопкой внизу чата с ботом."); }
+applyTheme();
+
+function haptic(kind){ safeCall(function(){
+  if (!tg || !inTelegram || !tg.HapticFeedback || !tg.isVersionAtLeast || !tg.isVersionAtLeast("6.1")) return;
+  if (kind === "select") tg.HapticFeedback.selectionChanged();
+  else if (kind === "ok" || kind === "error") tg.HapticFeedback.notificationOccurred(kind === "ok" ? "success" : "error");
+  else tg.HapticFeedback.impactOccurred("light");
+}); }
+
+var toastTimer;
+function toast(text, isErr){
+  var t = $("toast"); t.textContent = text; t.className = "toast show" + (isErr ? " err" : "");
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.className = "toast" + (isErr ? " err" : ""); }, 3200);
 }
-document.getElementById("go").onclick = () => {
-  const p = document.getElementById("products").value.trim();
-  if (!p){ tg ? tg.showAlert("Напишите, какие продукты у вас есть.") : alert("Напишите продукты"); return; }
-  send({a:"recipe", products:p.slice(0,500)}); };
-document.getElementById("more").onclick = () => send({a:"more"});
-document.getElementById("wo").onclick = () => document.getElementById("wo-row").classList.toggle("hidden");
-document.getElementById("wo-go").onclick = () => { const x = document.getElementById("wo-item").value.trim(); if (x) send({a:"without", item:x.slice(0,60)}); };
-document.getElementById("wa").onclick = () => tg ? tg.openLink("https://wa.me/79896506090") : location.href = "https://wa.me/79896506090";
-document.getElementById("ch").onclick = () => tg ? tg.openTelegramLink("https://t.me/Naturalnie_Masla") : location.href = "https://t.me/Naturalnie_Masla";
-// Необязательный режим с бэкендом: GET {API}/last с initData — показывает последний рецепт с картинкой.
+
+/* ---------- выбор ---------- */
+function makeChip(label, pressed, onPick, cls){
+  var b = document.createElement("button"); b.type = "button"; b.className = "chip" + (cls ? " " + cls : "");
+  b.textContent = label; b.setAttribute("aria-pressed", pressed ? "true" : "false");
+  b.addEventListener("click", function(){ onPick(b); }); return b;
+}
+function selectIn(group, btn){ [].forEach.call(group.querySelectorAll(".chip,button"), function(x){ if (!x.classList.contains("more")) x.setAttribute("aria-pressed", x === btn ? "true" : "false"); }); }
+
+var cbox = $("cuisines"), pbox = $("peoples"), pwrap = $("peoples-box");
+CUISINES.forEach(function(c, i){
+  var b = makeChip(c, c === state.cuisine, function(btn){
+    state.cuisine = c; state.people = ""; selectIn(cbox, btn); selectIn(pbox, null);
+    pwrap.hidden = c !== "Дагестанская"; haptic("select");
+  });
+  if (i >= VISIBLE) { b.hidden = true; b.dataset.extra = "1"; }
+  cbox.appendChild(b);
+});
+var moreBtn = makeChip("Ещё кухни +" + (CUISINES.length - VISIBLE), false, function(btn){
+  [].forEach.call(cbox.querySelectorAll("[data-extra]"), function(x){ x.hidden = false; }); btn.remove(); haptic();
+}, "more");
+cbox.appendChild(moreBtn);
+PEOPLES.forEach(function(p){
+  pbox.appendChild(makeChip(p[0].toUpperCase() + p.slice(1), false, function(btn){
+    var on = state.people !== p; state.people = on ? p : ""; selectIn(pbox, on ? btn : null); haptic("select");
+  }));
+});
+var kbox = $("kcal");
+KCAL.forEach(function(k){
+  var b = document.createElement("button"); b.type = "button"; b.textContent = k[1];
+  b.setAttribute("aria-pressed", k[0] === state.kcal ? "true" : "false");
+  b.addEventListener("click", function(){ state.kcal = k[0]; [].forEach.call(kbox.children, function(x){ x.setAttribute("aria-pressed", x === b ? "true" : "false"); }); haptic("select"); });
+  kbox.appendChild(b);
+});
+
+/* ---------- передача запроса боту ----------
+   1) Если приложение открыто кнопкой клавиатуры в чате — Telegram.WebApp.sendData (рецепт придёт в чат, окно закроется).
+   2) Во всех остальных случаях (кнопка меню «Рецепты», инлайн-кнопка, обычный браузер) sendData Telegram молча
+      игнорирует. Тогда открываем ссылку t.me/gulnara_recbot?start=<код>: бот получает «/start <код>» и отвечает рецептом.
+   Код: [действие][кухня][народ][ккал] + продукты (каждая буква = 1 символ), всего до 64 символов A-Z a-z 0-9 _ -. */
+var B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+var TXT = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя ,-.0123456789"; // 47 знаков, индекс → символ B64
+var ACT = {recipe:"r", more:"m", without:"w"};
+function packText(s, room){
+  s = String(s || "").toLowerCase().replace(/[\n;\/]+/g, ",").replace(/[^абвгдеёжзийклмнопрстуфхцчшщъыьэюя ,\-.0-9]+/g, " ")
+       .replace(/\s*,\s*/g, ",").replace(/,+/g, ",").replace(/\s+/g, " ").replace(/^[ ,]+|[ ,]+$/g, "");
+  var cut = false;
+  if (s.length > room){ cut = true; var t = s.slice(0, room); var k = t.lastIndexOf(","); s = (k > 8 ? t.slice(0, k) : t).trim(); }
+  var out = ""; for (var i = 0; i < s.length; i++){ var j = TXT.indexOf(s[i]); if (j >= 0) out += B64[j]; }
+  return {code: out, text: s, cut: cut};
+}
+function buildStart(action, text){
+  var head = ACT[action] + B64[Math.max(0, CUISINES.indexOf(state.cuisine))] +
+             B64[state.people ? PEOPLES.indexOf(state.people) + 1 : 0] +
+             B64[Math.max(0, KCAL.findIndex(function(k){ return k[0] === state.kcal; }))];
+  var p = packText(text, 64 - head.length);
+  return {param: head + p.code, cut: p.cut, sent: p.text};
+}
+function launchMode(){
+  if (!tg || !inTelegram) return "browser";
+  var u = tg.initDataUnsafe || {};
+  // query_id есть, когда открыто кнопкой меню / инлайн-кнопкой / ссылкой; тогда sendData не работает.
+  return u.query_id ? "menu" : "keyboard";
+}
+var busy = false;
+function setBusy(on, label){
+  busy = on; var g = $("go"); g.classList.toggle("busy", on); g.disabled = on;
+  $("go-txt").textContent = label || "Подобрать рецепт";
+}
+function openDeepLink(action, text){
+  var s = buildStart(action, text);
+  var url = "https://t.me/" + BOT + "?start=" + s.param;
+  toast(s.cut ? "В чат уйдут первые продукты — остальные допишите сообщением." : "Открываю чат с ботом — рецепт придёт туда.");
+  if (tg && inTelegram){
+    var ok = safeCall(function(){ tg.openTelegramLink(url); return true; });
+    if (!ok){ location.href = url; }
+    setTimeout(function(){ safeCall(function(){ tg.close(); }); }, 600);
+  } else {
+    location.href = url;
+  }
+  return url;
+}
+function send(action, extra, text){
+  if (busy) return;
+  var payload = JSON.stringify(Object.assign({cuisine:state.cuisine, people:state.people, kcal:state.kcal,
+    healthy: state.cuisine === "Похудение и ЗОЖ"}, extra, {a: action}));
+  var mode = launchMode();
+  window.__lastSend = {mode: mode};
+  haptic("ok");
+  setBusy(true, "Отправляю…");
+  if (mode === "keyboard"){
+    var sent = safeCall(function(){ tg.sendData(payload); return true; });
+    window.__lastSend.via = sent ? "sendData" : "deeplink";
+    if (!sent){ window.__lastSend.url = openDeepLink(action, text); return; }
+    // Если окно не закрылось (Telegram проигнорировал sendData) — запасной путь через ссылку.
+    setTimeout(function(){ if (document.visibilityState === "visible"){ window.__lastSend.via = "sendData+deeplink"; window.__lastSend.url = openDeepLink(action, text); setTimeout(function(){ setBusy(false); }, 1500); } }, 2500);
+    return;
+  }
+  window.__lastSend.via = "deeplink";
+  window.__lastSend.url = openDeepLink(action, text);
+  setTimeout(function(){ setBusy(false); }, 2500);
+}
+
+$("go").addEventListener("click", function(){
+  var box = $("products"), p = box.value.trim();
+  if (!p){
+    haptic("error"); toast("Напишите, какие продукты у вас есть.", true);
+    $("prod-card").classList.add("field-err"); box.focus();
+    setTimeout(function(){ $("prod-card").classList.remove("field-err"); }, 1800);
+    return;
+  }
+  send("recipe", {products: p.slice(0, 500)}, p);
+});
+$("more").addEventListener("click", function(){ send("more", {}, ""); });
+$("wo").addEventListener("click", function(){ var r = $("wo-row"); r.classList.toggle("open"); if (r.classList.contains("open")) $("wo-item").focus(); });
+$("wo-go").addEventListener("click", function(){
+  var x = $("wo-item").value.trim();
+  if (!x){ haptic("error"); toast("Напишите, без какого продукта.", true); return; }
+  send("without", {item: x.slice(0, 60)}, x);
+});
+[].forEach.call(document.querySelectorAll("[data-href]"), function(a){
+  a.addEventListener("click", function(){
+    var url = a.getAttribute("data-href");
+    if (tg && inTelegram){
+      var ok = safeCall(function(){ if (/^https:\/\/t\.me\//.test(url)) tg.openTelegramLink(url); else tg.openLink(url); return true; });
+      if (ok) return;
+    }
+    window.open(url, "_blank", "noopener");
+  });
+});
+
+// Необязательно: показ последнего рецепта, если задан ?api=https://... (по умолчанию выключено).
 if (API && tg && tg.initData){
-  fetch(API.replace(/\/$/,"") + "/last", {headers:{"X-Telegram-Init-Data": tg.initData}}).then(r => r.ok ? r.json() : null).then(d => {
+  fetch(API.replace(/\/$/, "") + "/last", {headers: {"X-Telegram-Init-Data": tg.initData}}).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
     if (!d || !d.title) return;
-    const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
-    document.getElementById("recipe").innerHTML = (d.image ? `<img src="${esc(d.image)}" alt="">` : "") +
-      `<b>${esc(d.title)}</b><ul>${(d.ingredients||[]).map(i => `<li>${esc(i.name)} — ${esc(i.amount||"")}</li>`).join("")}</ul>` +
-      `<ol>${(d.steps||[]).map(s => `<li>${esc(s)}</li>`).join("")}</ol>`;
-  }).catch(()=>{});
+    var esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); };
+    $("recipe").innerHTML = (d.image ? '<img src="' + esc(d.image) + '" alt="">' : "") +
+      "<b>" + esc(d.title) + "</b><ul>" + (d.ingredients || []).map(function(i){ return "<li>" + esc(i.name) + " — " + esc(i.amount || "") + "</li>"; }).join("") + "</ul>" +
+      "<ol>" + (d.steps || []).map(function(s){ return "<li>" + esc(s) + "</li>"; }).join("") + "</ol>";
+  }).catch(function(){});
 }
-</script></body></html>
+})();
+</script>
+</body>
+</html>
