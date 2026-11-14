@@ -269,7 +269,7 @@ html.dark body{background-color:var(--bg);background-image:radial-gradient(ellip
     <div class="card-h"><h2>Ваш рецепт</h2></div>
     <p class="hint" id="recipe-status" hidden>Готовлю рецепт…</p>
     <div id="api-fail" hidden>
-      <p>Не получилось, попробуйте ещё раз</p>
+      <p id="api-fail-text">Не получилось, попробуйте ещё раз</p>
       <button class="photo-btn" id="retry" type="button">Попробовать ещё раз</button>
     </div>
     <div id="photo-ask" hidden>
@@ -402,7 +402,8 @@ function hideNotices(){
   var f = $("api-fail"); if (f) f.hidden = true;
   var a = $("photo-ask"); if (a) a.hidden = true;
 }
-function showFail(retryFn){
+function showFail(retryFn, message){
+  var ft = $("api-fail-text"); if (ft) ft.textContent = message || "Не получилось, попробуйте ещё раз";
   showRecipeCard();
   hideNotices();
   var status = $("recipe-status"); if (status) status.hidden = true;
@@ -411,6 +412,9 @@ function showFail(retryFn){
   var fail = $("api-fail"); if (fail) fail.hidden = false;
   lastRetry = retryFn || lastRetry;
   haptic("error");
+}
+function busyMessage(res){
+  return (res && res.d && res.d.error === "busy" && res.d.message) ? String(res.d.message) : "";
 }
 function showPhotoAsk(message){
   showRecipeCard();
@@ -462,7 +466,7 @@ function requestRecipe(action, extra, text){
     if (res.ok && res.d && (res.d.name || res.d.title) && $("recipe")){
       showRecipe(res.d); setBusy(false);
     } else {
-      setBusy(false); showFail(lastRetry);
+      setBusy(false); showFail(lastRetry, busyMessage(res));
     }
   }).catch(function(){ clearTimeout(timer); setBusy(false); showFail(lastRetry); });
 }
@@ -519,6 +523,7 @@ function sendPhoto(dataUrl){
       showRecipe(res.d);
       return;
     }
+    if (busyMessage(res)){ showFail(lastRetry, busyMessage(res)); return; }
     if (res.ok && res.d && res.d.need_retake){
       showPhotoAsk(res.d.message || "Сфотографируйте ближе или напишите продукты.");
       return;
