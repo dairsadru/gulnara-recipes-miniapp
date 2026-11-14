@@ -156,6 +156,11 @@ textarea:focus,input:focus{border-color:var(--accent);background:var(--surface)}
 .photo-btn:active{transform:scale(.99)}
 .photo-btn[disabled]{opacity:.7;cursor:default}
 .photo-hint{margin:8px 0 0;font-size:13px;color:var(--muted);text-align:center;line-height:1.4}
+
+#recipe-card #more{margin-top:16px}
+#recipe .footer-links{margin-top:var(--s3);display:grid;gap:6px}
+#recipe .footer-links a{color:var(--accent);font-size:14px;word-break:break-all}
+#recipe-status{margin:0 0 var(--s3)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 /* Палитра и лицензированные шрифты по предоставленному визуальному ориентиру. */
@@ -242,6 +247,13 @@ html.dark body{background-color:var(--bg);background-image:radial-gradient(ellip
     <div class="seg" id="kcal" role="group" aria-label="Калорийность"></div>
   </section>
 
+  <section class="card" id="recipe-card" hidden>
+    <div class="card-h"><h2>Ваш рецепт</h2></div>
+    <p class="hint" id="recipe-status" hidden>Готовлю рецепт…</p>
+    <div id="recipe"></div>
+    <button class="photo-btn" id="more" type="button">Получить другой рецепт</button>
+  </section>
+
 
   <section class="card">
     <div class="card-h"><h2>Гульнара</h2></div>
@@ -276,12 +288,15 @@ var PEOPLES = ["аварская","даргинская","кумыкская","�
   "цахурская","агульская","татская","азербайджанская"];
 var KCAL = [["","Любая"],["lt300","до 300"],["300_500","300–500"],["gt500","500+"]];
 var state = {cuisine:"Любая", people:"", kcal:""};
-// Не отправлять Telegram initData на адрес из чужого домена.
+// initData уходит только на наш Cloudflare-туннель (https://*.trycloudflare.com), не на чужие домены.
 var API = "", apiParam = new URLSearchParams(location.search).get("api");
-try {
-  var apiURL = apiParam && new URL(apiParam, location.origin);
-  if (apiURL && apiURL.origin === location.origin) API = apiURL.href;
-} catch (_) { /* Неверный адрес: рецепты остаются в чате. */ }
+function allowedApi(href){
+  try {
+    var u = new URL(href);
+    return u.protocol === "https:" && /^[a-z0-9-]+\.trycloudflare\.com$/.test(u.hostname);
+  } catch (_) { return false; }
+}
+if (apiParam && allowedApi(apiParam)) API = apiParam.replace(/\/$/, "");
 var $ = function(id){ return document.getElementById(id); };
 
 /* ---------- Telegram: тема и безопасные зоны ---------- */
@@ -378,6 +393,7 @@ function setBusy(on, label){
   busy = on; var g = $("go"); g.classList.toggle("busy", on); g.disabled = on;
   $("go-txt").textContent = label || "Подобрать рецепт";
   var ph = $("photo"); if (ph) ph.disabled = on;
+  var mo = $("more"); if (mo) mo.disabled = on;
 }
 function openDeepLink(action, text){
   var s = buildStart(action, text);
@@ -446,6 +462,44 @@ function sendPhotoRequest(){
   setTimeout(function(){ setBusy(false); }, 2500);
 }
 
+function showRecipeCard(){
+  var c = $("recipe-card"); if (c) c.hidden = false;
+  document.body.classList.add("has-recipe");
+}
+function requestRecipe(action, extra, text){
+  function fallback(){
+    toast("Рецепт придёт в чат.");
+    if (action === "more") send("more", {}, "");
+    else send("recipe", {products: (extra && extra.products) || text || ""}, text || "");
+  }
+  if (!(API && tg && inTelegram && tg.initData)){ fallback(); return; }
+  setBusy(true, "Подбираю рецепт…");
+  showRecipeCard();
+  var status = $("recipe-status");
+  if (status){ status.hidden = false; status.textContent = "Готовлю рецепт…"; }
+  haptic("ok");
+  var ctrl = window.AbortController ? new AbortController() : null;
+  var timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 90000);
+  var body = Object.assign({cuisine:state.cuisine, people:state.people, kcal:state.kcal,
+    healthy: state.cuisine === "Похудение и ЗОЖ", deliver: true, a: action}, extra || {});
+  fetch(API + "/recipe", {
+    method: "POST",
+    headers: {"Content-Type": "application/json", "X-Telegram-Init-Data": tg.initData},
+    body: JSON.stringify(body),
+    signal: ctrl && ctrl.signal
+  }).then(function(r){ return r.json().then(function(d){ return {ok: r.ok, d: d}; }, function(){ return {ok: false, d: null}; }); })
+  .then(function(res){
+    clearTimeout(timer);
+    if (res.ok && res.d && (res.d.name || res.d.title) && $("recipe")){
+      if (status) status.hidden = true;
+      renderRecipe(res.d, $("recipe"));
+      setBusy(false);
+    } else {
+      setBusy(false); fallback();
+    }
+  }).catch(function(){ clearTimeout(timer); setBusy(false); fallback(); });
+}
+
 $("go").addEventListener("click", function(){
   var box = $("products"), p = box.value.trim();
   if (!p){
@@ -454,9 +508,11 @@ $("go").addEventListener("click", function(){
     setTimeout(function(){ $("prod-card").classList.remove("field-err"); }, 1800);
     return;
   }
-  send("recipe", {products: p.slice(0, 500)}, p);
+  if (busy) return;
+  requestRecipe("recipe", {products: p.slice(0, 500)}, p);
 });
 $("photo").addEventListener("click", function(){ sendPhotoRequest(); });
+$("more").addEventListener("click", function(){ if (busy) return; requestRecipe("more", {}, ""); });
 [].forEach.call(document.querySelectorAll("[data-href]"), function(a){
   a.addEventListener("click", function(){
     var url = a.getAttribute("data-href");
@@ -527,6 +583,11 @@ function renderRecipe(d, box){
     if (d.storage) h += '<div class="box">🧊 <b>Хранение:</b> ' + esc(d.storage) + '</div>';
     if ((d.benefits || []).length) h += '<div class="sec">🌿 Полезное</div>' + d.benefits.map(function(x){ return '<div>• ' + esc(x) + '</div>'; }).join("");
     if (d.tip) h += '<div class="box">💡 <b>Совет:</b> ' + esc(d.tip) + '</div>';
+    if ((d.footer_links || []).length){
+      h += '<div class="sec">Ссылки</div><div class="footer-links">' +
+           d.footer_links.map(function(l){ return '<div><a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.name) + '</a></div>'; }).join("") +
+           '</div>';
+    }
     box.innerHTML = (d.image ? '<img src="' + esc(d.image) + '" alt=""><div class="note">Изображение создано ИИ</div>' : "") + h + '</div>';
     box.querySelectorAll("[data-p]").forEach(function(b){ b.onclick = function(){ per100 = b.getAttribute("data-p") === "1"; draw(); }; });
     box.querySelectorAll("[data-s]").forEach(function(b){ b.onclick = function(){ serv = Math.max(1, Math.min(20, serv + +b.getAttribute("data-s"))); draw(); }; });
