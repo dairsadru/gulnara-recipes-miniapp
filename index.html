@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Вкусно с Гульнарой</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -121,7 +121,76 @@ textarea:focus,input:focus{border-color:var(--accent);background:var(--surface)}
 
 #recipe img{width:100%;border-radius:var(--r-md);margin-bottom:var(--s2)}
 #recipe ol,#recipe ul{padding-left:20px;margin:6px 0}
+/* v3: карточка рецепта по образцу food.ru / ВкусВилл / «Нашенька» */
+.rv h3{margin:0 0 2px;font-size:20px;font-weight:700;letter-spacing:-.01em}
+.rv .cu{color:var(--muted);font-size:14px;margin-bottom:var(--s3)}
+.rv .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2);margin:var(--s3) 0}
+.rv .fact{background:var(--surface-2);border-radius:var(--r-md);padding:var(--s2) var(--s3);font-size:12px;color:var(--muted)}
+.rv .fact b{display:block;color:var(--ink);font-size:15px;font-weight:650}
+.rv .nut{border:1px solid var(--line);border-radius:var(--r-md);padding:var(--s3);margin:var(--s3) 0}
+.rv .nut-h{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted);margin-bottom:var(--s2)}
+.rv .tg2{display:flex;background:var(--surface-2);border-radius:var(--r-pill);padding:2px}
+.rv .tg2{flex:none}.rv .tg2 button{white-space:nowrap;border:0;background:none;font:inherit;font-size:12px;padding:4px 10px;border-radius:var(--r-pill);color:var(--muted)}
+.rv .tg2 button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.rv .nums{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;gap:var(--s1)}
+.rv .nums b{display:block;font-size:18px;color:var(--accent)}.rv .nums span{font-size:11px;color:var(--muted)}
+.rv .note{font-size:11px;color:var(--muted);margin-top:var(--s2)}
+.rv .sec{font-size:16px;font-weight:650;margin:var(--s4) 0 var(--s2);display:flex;align-items:center;gap:var(--s2)}
+.rv .stp{display:flex;align-items:center;gap:var(--s2);margin-left:auto;font-size:13px;font-weight:500}
+.rv .stp button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:16px;color:var(--ink)}
+.rv .grp{font-size:13px;color:var(--muted);font-style:italic;margin:var(--s2) 0 2px}
+.rv .ing{display:flex;justify-content:space-between;gap:var(--s3);padding:7px 0;border-bottom:1px dashed var(--line);font-size:15px}
+.rv .ing span:last-child{color:var(--muted);text-align:right;white-space:nowrap}
+.rv .chipline{font-size:13px;color:var(--muted);margin-top:var(--s2)}
+.rv .rstep{display:grid;grid-template-columns:28px 1fr;gap:var(--s2);margin:var(--s3) 0}
+.rv .rstep i{font-style:normal;width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
+.rv .rstep .tm{display:inline-block;margin-left:6px;font-size:12px;color:var(--accent);background:var(--accent-soft);border-radius:var(--r-pill);padding:1px 8px}
+.rv .rstep .rhint{font-size:13px;color:var(--muted);margin-top:4px}
+.rv .box{background:var(--surface-2);border-radius:var(--r-md);padding:var(--s3);margin:var(--s2) 0;font-size:14px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* Палитра и лицензированные шрифты по предоставленному визуальному ориентиру. */
+@font-face{font-family:Manrope;src:url('./assets/Manrope.ttf') format('truetype');font-weight:200 800;font-style:normal;font-display:swap}
+@font-face{font-family:CormorantGaramond;src:url('./assets/CormorantGaramond.ttf') format('truetype');font-weight:300 700;font-style:normal;font-display:swap}
+:root{--font:Manrope,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+:root{--bg:#F5F0E6;--surface:#FFFDF8;--surface-2:#EEE8DB;--line:#D9CDB6;--ink:#263C30;--muted:#586457;--accent:#263C30;--accent-press:#172B21;--accent-soft:#E5EBDD;--ok:#355C40;--danger:#A64336;--shadow:0 12px 34px rgba(49,57,40,.055)}
+html.dark{--bg:#1E2420;--surface:#29322B;--surface-2:#323C32;--line:#465247;--ink:#F4F2E8;--muted:#C4C3B7;--accent:#B6D5A9;--accent-press:#94BC87;--accent-soft:#3A4C3B;--accent-ink:#17231B;--ok:#B6D5A9}
+body{font-size:15px;line-height:1.55}.wrap{max-width:520px}
+.head{padding:22px 18px;margin:0 0 14px;border:1px solid var(--line);border-radius:24px;background:var(--surface);box-shadow:var(--shadow)}
+.logo{width:52px;height:52px;flex-basis:52px;background:#F4E8D5;border-radius:16px}
+.head h1{font-family:CormorantGaramond,Georgia,serif;font-size:25px;letter-spacing:-.025em;font-weight:700;line-height:1.08}
+.head p{font-size:13px;line-height:1.4;margin-top:6px}.badge{margin-top:8px}
+.card{padding:22px 18px;border-radius:20px;margin-bottom:12px}.card-h{align-items:center;margin-bottom:14px}
+.card-h h2{font-size:17px;line-height:1.3;font-weight:700}.step{background:var(--accent-soft);color:var(--accent);width:26px;height:26px;flex-basis:26px}
+textarea,input[type=text]{background:var(--surface);border-color:var(--line)}textarea{min-height:96px}
+.chip{padding:8px 14px}.seg button{min-height:42px}.btn2{min-height:46px}
+.rv h3{font:700 27px/1.12 CormorantGaramond,Georgia,serif;letter-spacing:-.025em}.rv .cu{margin-top:6px}
+.rv .facts{grid-template-columns:repeat(2,minmax(0,1fr))}.rv .fact{padding:10px 12px}.rv .fact b{margin-top:3px}
+.rv .sec{font:700 20px/1.25 CormorantGaramond,Georgia,serif;margin-top:22px}.rv .ing{padding:11px 0;gap:14px}
+.rv .ing span:last-child{white-space:normal;flex-shrink:0;max-width:48%}.rv .rstep{margin:16px 0;gap:12px}
+.rv .rstep i{background:var(--accent);color:var(--accent-ink)}.rv .box,.rv .nut{padding:15px}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+/* Кнопка подбора не перекрывает шаги, когда рецепт уже открыт. */
+body.has-recipe .bar{position:static;background:transparent;padding:12px 0 calc(var(--safe-bottom) + 12px)}
+@media(min-width:600px){body{padding-top:36px}.head{padding:28px}.card{padding:26px}.head h1{font-size:30px}}
+
+
+/* Кулинарная обложка и бумажная карточка: отдельно от данных рецепта. */
+body{background-color:var(--bg);background-image:radial-gradient(ellipse at 0 20%,rgba(168,108,50,.055),transparent 38%),radial-gradient(ellipse at 100% 58%,rgba(143,154,122,.09),transparent 38%)}
+.head{position:relative;isolation:isolate;display:flex;align-items:flex-end;min-height:286px;padding:30px 24px 27px;overflow:hidden;border:0;border-radius:26px;color:#fffdf7;background-color:#263c30;background-image:linear-gradient(90deg,rgba(21,39,28,.92) 0%,rgba(21,39,28,.72) 46%,rgba(21,39,28,.12) 100%),url('./assets/kitchen-cover-v2.webp');background-position:center,center 43%;background-size:cover;box-shadow:0 18px 38px rgba(39,51,33,.18)}
+.head .logo{display:none}.head>div{position:relative;z-index:1;max-width:300px}.head h1{color:#fffdf7;font-size:39px;line-height:.98;letter-spacing:-.035em;text-wrap:balance}.head p{color:#f5f0e6;font-size:14px;line-height:1.48;margin-top:12px;max-width:240px}.head .badge{color:#f7f4e9;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);margin-top:15px;padding:4px 10px}
+.hero-kicker{display:block;color:#e3dbc6;font-size:10px;font-weight:800;letter-spacing:.17em;text-transform:uppercase;margin-bottom:16px}.hero-credit{position:absolute;right:12px;top:12px;z-index:2;padding:4px 7px;border-radius:8px;color:#fff;background:rgba(24,38,27,.78);font-size:10px;line-height:1.3}
+.card{border-color:rgba(115,101,74,.15);box-shadow:0 8px 24px rgba(52,45,31,.045);background:var(--surface)}.card-h h2{letter-spacing:-.025em}.card-h .step{font-weight:800}.hint{line-height:1.5}
+textarea,input[type=text]{background:var(--surface-2);border-color:transparent}textarea:focus,input:focus{background:var(--surface);border-color:var(--accent)}
+.chip{border-color:var(--line);transition:background-color .18s ease,color .18s ease,transform .18s ease,border-color .18s ease}.chip:active{transform:scale(.97)}
+.rv h3{font-size:32px;line-height:1.05}.rv .fact{border:1px solid rgba(115,101,74,.08)}.rv .sec{font-size:22px}
+.primary{min-height:56px;letter-spacing:.01em;box-shadow:0 8px 22px rgba(27,50,34,.20)}
+@keyframes kitchen-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion:no-preference){.head{animation:kitchen-enter .5s ease-out both}.card{animation:kitchen-enter .48s ease-out both}.card:nth-of-type(2){animation-delay:.04s}.card:nth-of-type(3){animation-delay:.08s}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html.dark body{background-color:var(--bg);background-image:radial-gradient(ellipse at 100% 35%,rgba(143,154,122,.08),transparent 45%)}
+@media(max-width:340px){.head{min-height:268px;padding:24px 19px}.head h1{font-size:35px}.hero-credit{font-size:9px}}
+
 </style>
 </head>
 <body>
@@ -129,20 +198,22 @@ textarea:focus,input:focus{border-color:var(--accent);background:var(--surface)}
   <header class="head">
     <div class="logo" aria-hidden="true">
       <svg width="30" height="30" viewBox="0 0 64 64"><g fill="none" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14 38c-4-6 0-14 7-14 2-6 10-8 15-4 6-3 14 1 14 8 6 2 7 11 1 14-2 5-9 6-13 3-4 4-12 3-14-2-6 1-11-1-10-5z" fill="#C2652A" stroke="#9A4A1C" stroke-width="2"/>
+        <path d="M14 38c-4-6 0-14 7-14 2-6 10-8 15-4 6-3 14 1 14 8 6 2 7 11 1 14-2 5-9 6-13 3-4 4-12 3-14-2-6 1-11-1-10-5z" fill="#A86C32" stroke="#78451F" stroke-width="2"/>
         <path d="M28 30c2 3 6 4 9 2M40 36c2 1 4 0 5-2" stroke="#FBF6EE" stroke-width="2"/>
         <path d="M36 20c1-5 4-8 9-9-1 5-4 8-9 9z" fill="#6F8A5C" stroke="#56704A" stroke-width="1.5"/></g></svg>
     </div>
     <div>
+      <span class="hero-kicker">Домашняя кухня · с заботой</span>
       <h1>Вкусно с Гульнарой</h1>
-      <p>Рецепт из продуктов, которые у вас есть</p>
+      <p>Вдохновение для вкусных блюд из того, что есть дома.</p>
       <span class="badge">✓ Халяль</span>
     </div>
+    <span class="hero-credit">Изображение создано ИИ</span>
   </header>
 
   <section class="card" id="prod-card">
     <div class="card-h"><span class="step">1</span><h2>Какие продукты у вас есть?</h2></div>
-    <textarea id="products" rows="3" maxlength="500" placeholder="Например: курица, рис, морковь, лук"></textarea>
+    <textarea id="products" aria-label="Какие продукты у вас есть?" rows="3" maxlength="500" placeholder="Например: курица, рис, морковь, лук"></textarea>
     <p class="hint">Вода, соль и перец есть всегда — их писать не нужно.</p>
   </section>
 
@@ -206,7 +277,12 @@ var PEOPLES = ["аварская","даргинская","кумыкская","�
   "цахурская","агульская","татская","азербайджанская"];
 var KCAL = [["","Любая"],["lt300","до 300"],["300_500","300–500"],["gt500","500+"]];
 var state = {cuisine:"Любая", people:"", kcal:""};
-var API = new URLSearchParams(location.search).get("api") || "";
+// Не отправлять Telegram initData на адрес из чужого домена.
+var API = "", apiParam = new URLSearchParams(location.search).get("api");
+try {
+  var apiURL = apiParam && new URL(apiParam, location.origin);
+  if (apiURL && apiURL.origin === location.origin) API = apiURL.href;
+} catch (_) { /* Неверный адрес: рецепты остаются в чате. */ }
 var $ = function(id){ return document.getElementById(id); };
 
 /* ---------- Telegram: тема и безопасные зоны ---------- */
@@ -366,13 +442,80 @@ $("wo-go").addEventListener("click", function(){
 });
 
 // Необязательно: показ последнего рецепта, если задан ?api=https://... (по умолчанию выключено).
+// v3: те же поля, что в JSON бота (name, cuisine, time, active_time, servings, difficulty, portion_g, ingredients[{group,item,amount}],
+// steps[строка | {title,text,min,tip}], kcal_per_serving, protein, fat, carbs, benefits, tip, serve, storage, allergens, equipment).
+function renderRecipe(d, box){
+  var esc = function(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); };
+  var num = function(x){ var m = String(x == null ? "" : x).match(/\d+(?:[.,]\d+)?/); return m ? parseFloat(m[0].replace(",", ".")) : null; };
+  var base = num(d.servings) || 1, serv = base, per100 = false;
+  var fmt = function(v){ v = Math.round(v * 1000) / 1000; return String(v).replace(".", ","); };
+  // Дроби — одна величина: 1/2 × 2 = 1, а не 2/4.
+  var fractions = {"¼":.25,"½":.5,"¾":.75,"⅓":1/3,"⅔":2/3,"⅛":.125,"⅜":.375,"⅝":.625,"⅞":.875};
+  var quantity = function(t){
+    t = t.trim().replace(",", ".");
+    var mixed = t.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+    if (mixed) return +mixed[3] ? +mixed[1] + (+mixed[2] / +mixed[3]) : null;
+    var glyph = t.match(/^(\d+)?\s*([¼½¾⅓⅔⅛⅜⅝⅞])$/);
+    if (glyph) return +(glyph[1] || 0) + fractions[glyph[2]];
+    var fraction = t.match(/^(\d+)\s*\/\s*(\d+)$/);
+    if (fraction) return +fraction[2] ? +fraction[1] / +fraction[2] : null;
+    return /^\d+(?:\.\d+)?$/.test(t) ? Number(t) : null;
+  };
+  var scale = function(a){ if (serv === base) return a;
+    var atom = "(?:\\d+\\s+\\d+\\/\\d+|\\d+\\s*[¼½¾⅓⅔⅛⅜⅝⅞]|\\d+\\s*\\/\\s*\\d+|\\d+(?:[.,]\\d+)?|[¼½¾⅓⅔⅛⅜⅝⅞])";
+    var pattern = new RegExp("(" + atom + ")(?:\\s*[–-]\\s*(" + atom + "))?", "g");
+    return String(a).replace(pattern, function(original, x, y){
+      var one = quantity(x), two = y ? quantity(y) : null;
+      if (one == null || (y && two == null)) return original;
+      return fmt(one * serv / base) + (y ? "–" + fmt(two * serv / base) : "");
+    });
+  };
+  function draw(){
+    var k = num(d.kcal_per_serving), pg = num(d.portion_g), f = (per100 && pg) ? 100 / pg : 1, grp = null;
+    var n = function(v, u){ v = num(v); return v == null ? "—" : Math.round(v * f) + (u || ""); };
+    var h = '<div class="rv"><h3>' + esc(d.name || d.title) + '</h3><div class="cu">' + esc(d.cuisine || "") + '</div>';
+    if (d.intro) h += '<div>' + esc(d.intro) + '</div>';
+    h += '<div class="facts"><div class="fact">Готово через<b>' + esc(d.time || "—") + '</b></div>' +
+         '<div class="fact">Порции<b>' + esc(serv) + '</b></div>' +
+         '<div class="fact">У плиты<b>' + esc(d.active_time || "—") + '</b></div>' +
+         '<div class="fact">Сложность<b>' + esc(d.difficulty || "—") + '</b></div></div>';
+    if (k) h += '<div class="nut"><div class="nut-h"><span>Примерно, ' + (per100 ? "на 100 г" : "на 1 порцию" + (pg ? " (~" + Math.round(pg) + " г)" : "")) + '</span>' +
+         (pg ? '<span class="tg2"><button data-p="0" aria-pressed="' + !per100 + '">порция</button><button data-p="1" aria-pressed="' + per100 + '">100 г</button></span>' : "") +
+         '</div><div class="nums"><div><b>' + n(k) + '</b><span>ккал</span></div><div><b>' + n(d.protein) + '</b><span>белки, г</span></div>' +
+         '<div><b>' + n(d.fat) + '</b><span>жиры, г</span></div><div><b>' + n(d.carbs) + '</b><span>углеводы, г</span></div></div>' +
+         '<div class="note">Числа примерные, по сырым продуктам.</div></div>';
+    h += '<div class="sec">🛒 Ингредиенты<span class="stp"><button data-s="-1" aria-label="Меньше порций">−</button>' + serv + ' порц.<button data-s="1" aria-label="Больше порций">+</button></span></div>';
+    (d.ingredients || []).forEach(function(i){ if (typeof i === "string") i = {item: i};
+      if (i.group && i.group !== grp){ grp = i.group; h += '<div class="grp">' + esc(i.group) + '</div>'; }
+      h += '<div class="ing"><span>' + esc(i.item || i.name) + '</span><span>' + esc(scale(i.amount || "")) + '</span></div>'; });
+    if ((d.to_buy || []).length) h += '<div class="box">🧺 <b>Нужно докупить:</b> ' + d.to_buy.map(function(x){ return esc(x.item || x); }).join(", ") + '</div>';
+    if ((d.equipment || []).length) h += '<div class="chipline">🍳 Понадобится: ' + esc(d.equipment.join(", ")) + '</div>';
+    if ((d.allergens || []).length) h += '<div class="chipline">⚠️ Аллергены: ' + esc(d.allergens.join(", ")) + '</div>';
+    h += '<div class="sec">👩‍🍳 Приготовление</div>';
+    (d.steps || []).forEach(function(s, j){ if (typeof s === "string") s = {text: s};
+      h += '<div class="rstep"><i>' + (j + 1) + '</i><div>' + (s.title ? "<b>" + esc(s.title) + ".</b> " : "") + esc(s.text) +
+           (num(s.min) ? '<span class="tm">⏲ ' + Math.round(num(s.min)) + ' мин</span>' : "") +
+           (s.tip ? '<div class="rhint">💬 ' + esc(s.tip) + '</div>' : "") + '</div></div>'; });
+    if (d.serve) h += '<div class="box">🍽 <b>Подача:</b> ' + esc(d.serve) + '</div>';
+    if (d.storage) h += '<div class="box">🧊 <b>Хранение:</b> ' + esc(d.storage) + '</div>';
+    if ((d.benefits || []).length) h += '<div class="sec">🌿 Полезное</div>' + d.benefits.map(function(x){ return '<div>• ' + esc(x) + '</div>'; }).join("");
+    if (d.tip) h += '<div class="box">💡 <b>Совет:</b> ' + esc(d.tip) + '</div>';
+    box.innerHTML = (d.image ? '<img src="' + esc(d.image) + '" alt=""><div class="note">Изображение создано ИИ</div>' : "") + h + '</div>';
+    box.querySelectorAll("[data-p]").forEach(function(b){ b.onclick = function(){ per100 = b.getAttribute("data-p") === "1"; draw(); }; });
+    box.querySelectorAll("[data-s]").forEach(function(b){ b.onclick = function(){ serv = Math.max(1, Math.min(20, serv + +b.getAttribute("data-s"))); draw(); }; });
+  }
+  draw();
+  if (box.id === "recipe") {
+    document.body.classList.add("has-recipe");
+    var card = box.closest(".card"), heading = card && card.querySelector(".card-h h2");
+    if (heading) heading.textContent = "Ваш рецепт";
+  }
+}
+window.renderRecipe = renderRecipe;
 if (API && tg && tg.initData){
   fetch(API.replace(/\/$/, "") + "/last", {headers: {"X-Telegram-Init-Data": tg.initData}}).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
-    if (!d || !d.title) return;
-    var esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); };
-    $("recipe").innerHTML = (d.image ? '<img src="' + esc(d.image) + '" alt="">' : "") +
-      "<b>" + esc(d.title) + "</b><ul>" + (d.ingredients || []).map(function(i){ return "<li>" + esc(i.name) + " — " + esc(i.amount || "") + "</li>"; }).join("") + "</ul>" +
-      "<ol>" + (d.steps || []).map(function(s){ return "<li>" + esc(s) + "</li>"; }).join("") + "</ol>";
+    if (!d || !(d.name || d.title)) return;
+    renderRecipe(d, $("recipe"));
   }).catch(function(){});
 }
 })();
