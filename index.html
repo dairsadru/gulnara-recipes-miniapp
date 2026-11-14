@@ -167,7 +167,10 @@ textarea:focus,input:focus{border-color:var(--accent);background:var(--surface)}
 #photo-preview-wrap img{display:block;width:100%;max-height:220px;object-fit:cover;border-radius:var(--r-md);margin:0 0 10px;background:var(--surface-2)}
 #photo-preview-wrap .row{display:flex;gap:8px}
 #photo-preview-wrap .row button{flex:1}
-#api-fail,#photo-ask{margin:0 0 var(--s3)}
+#api-fail,#photo-ask,#clarify-box{margin:0 0 var(--s3)}
+#clarify-text{white-space:pre-line;line-height:1.5}
+#clarify-buttons .photo-btn{margin-top:8px}
+#clarify-input{width:100%;margin-top:12px;min-height:48px;border:1px solid var(--line);border-radius:var(--r-md);padding:10px;font:inherit;box-sizing:border-box;background:var(--surface);color:var(--ink)}
 #api-fail .photo-btn,#photo-ask .photo-btn{margin-top:10px}
 .rv .seen{margin:0 0 var(--s3);background:var(--accent-soft)}
 #more.hidden-more{display:none}
@@ -266,7 +269,7 @@ html.dark body{background-color:var(--bg);background-image:radial-gradient(ellip
   </section>
 
   <section class="card" id="recipe-card" hidden>
-    <div class="card-h"><h2>Ваш рецепт</h2></div>
+    <div class="card-h"><h2 id="recipe-card-title">Ваш рецепт</h2></div>
     <p class="hint" id="recipe-status" hidden>Готовлю рецепт…</p>
     <div id="api-fail" hidden>
       <p id="api-fail-text">Не получилось, попробуйте ещё раз</p>
@@ -275,6 +278,13 @@ html.dark body{background-color:var(--bg);background-image:radial-gradient(ellip
     <div id="photo-ask" hidden>
       <p id="photo-ask-text"></p>
       <button class="photo-btn" id="photo-ask-retake" type="button">Снять ещё раз</button>
+    </div>
+    <div id="clarify-box" hidden aria-live="polite">
+      <p id="clarify-text"></p>
+      <div id="clarify-buttons"></div>
+      <label id="clarify-label" for="clarify-input">Или напишите ответ</label>
+      <input id="clarify-input" type="text" maxlength="200" autocomplete="off" placeholder="Ваш ответ">
+      <button class="photo-btn" id="clarify-send" type="button">Ответить</button>
     </div>
     <div id="recipe"></div>
     <button class="photo-btn" id="more" type="button">Получить другой рецепт</button>
@@ -387,10 +397,11 @@ KCAL.forEach(function(k){
 var busy = false;
 var lastRetry = null;
 var lastPhotoData = null;
+var clarificationNonce = "";
 function setBusy(on, label){
   busy = on; var g = $("go"); g.classList.toggle("busy", on); g.disabled = on;
   $("go-txt").textContent = label || "Подобрать рецепт";
-  ["photo","photo-send","photo-retake","photo-ask-retake","more","retry"].forEach(function(id){
+  ["photo","photo-send","photo-retake","photo-ask-retake","more","retry","clarify-send"].forEach(function(id){
     var el = $(id); if (el) el.disabled = on;
   });
 }
@@ -401,6 +412,7 @@ function showRecipeCard(){
 function hideNotices(){
   var f = $("api-fail"); if (f) f.hidden = true;
   var a = $("photo-ask"); if (a) a.hidden = true;
+  var q = $("clarify-box"); if (q) q.hidden = true;
 }
 function showFail(retryFn, message){
   var ft = $("api-fail-text"); if (ft) ft.textContent = message || "Не получилось, попробуйте ещё раз";
@@ -427,8 +439,39 @@ function showPhotoAsk(message){
   if (ask) ask.hidden = false;
   haptic("error");
 }
+function submitClarification(value){
+  value = String(value || "").trim();
+  if (busy || !value || !clarificationNonce) return;
+  requestRecipe("clarify", {answer:value.slice(0,200), nonce:clarificationNonce}, value);
+}
+function showClarification(data){
+  showRecipeCard(); hideNotices();
+  var title=$("recipe-card-title"); if (title) title.textContent="Уточним";
+  var status=$("recipe-status"); if (status) status.hidden=true;
+  var recipe=$("recipe"); if (recipe) recipe.innerHTML="";
+  var more=$("more"); if (more) more.classList.add("hidden-more");
+  clarificationNonce=String(data.nonce || "");
+  var txt=$("clarify-text"); if (txt) txt.textContent=String(data.message || "Уточните, пожалуйста.");
+  var choices=$("clarify-buttons");
+  if (choices){
+    choices.innerHTML="";
+    (Array.isArray(data.buttons) ? data.buttons : []).slice(0,5).forEach(function(item){
+      if (!item || typeof item.label !== "string" || typeof item.value !== "string") return;
+      var button=document.createElement("button"); button.type="button"; button.className="photo-btn";
+      button.textContent=item.label.slice(0,80);
+      button.addEventListener("click", function(){ submitClarification(item.value); });
+      choices.appendChild(button);
+    });
+  }
+  var input=$("clarify-input"); if (input){ input.value=""; input.hidden=!clarificationNonce; }
+  var label=$("clarify-label"); if (label) label.hidden=!clarificationNonce;
+  var send=$("clarify-send"); if (send) send.hidden=!clarificationNonce;
+  if (!clarificationNonce && txt) txt.textContent += "\nНапишите продукты в поле выше и нажмите «Подобрать рецепт».";
+  var box=$("clarify-box"); if (box) box.hidden=false;
+}
 function showRecipe(d){
   hideNotices();
+  var title=$("recipe-card-title"); if (title) title.textContent="Ваш рецепт";
   var status = $("recipe-status"); if (status) status.hidden = true;
   var more = $("more"); if (more) more.classList.remove("hidden-more");
   renderRecipe(d, $("recipe"));
@@ -463,10 +506,14 @@ function requestRecipe(action, extra, text){
   }).then(function(r){ return r.json().then(function(d){ return {ok: r.ok, d: d}; }, function(){ return {ok: false, d: null}; }); })
   .then(function(res){
     clearTimeout(timer);
-    if (res.ok && res.d && (res.d.name || res.d.title) && $("recipe")){
-      showRecipe(res.d); setBusy(false);
+    if (res.ok && res.d && res.d.clarify && res.d.message){
+      setBusy(false); showClarification(res.d);
+    } else if (res.ok && res.d && (res.d.name || res.d.title) && $("recipe")){
+      clarificationNonce=""; showRecipe(res.d); setBusy(false);
     } else {
-      setBusy(false); showFail(lastRetry, busyMessage(res));
+      setBusy(false);
+      if (res.d && res.d.error === "stale_clarification") { clarificationNonce=""; showFail(null, res.d.message); }
+      else showFail(lastRetry, busyMessage(res));
     }
   }).catch(function(){ clearTimeout(timer); setBusy(false); showFail(lastRetry); });
 }
@@ -565,6 +612,8 @@ $("go").addEventListener("click", function(){
   if (busy) return;
   requestRecipe("recipe", {products: p.slice(0, 500)}, p);
 });
+$("clarify-send").addEventListener("click", function(){ submitClarification($("clarify-input").value); });
+$("clarify-input").addEventListener("keydown", function(e){ if (e.key === "Enter"){ e.preventDefault(); submitClarification(this.value); } });
 $("photo").addEventListener("click", function(){ if (!busy) openCamera(); });
 $("photo-input").addEventListener("change", function(){
   var f = this.files && this.files[0];
