@@ -161,6 +161,16 @@ textarea:focus,input:focus{border-color:var(--accent);background:var(--surface)}
 #recipe .footer-links{margin-top:var(--s3);display:grid;gap:6px}
 #recipe .footer-links a{color:var(--accent);font-size:14px;word-break:break-all}
 #recipe-status{margin:0 0 var(--s3)}
+
+#photo-input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+#photo-preview-wrap{margin-top:12px}
+#photo-preview-wrap img{display:block;width:100%;max-height:220px;object-fit:cover;border-radius:var(--r-md);margin:0 0 10px;background:var(--surface-2)}
+#photo-preview-wrap .row{display:flex;gap:8px}
+#photo-preview-wrap .row button{flex:1}
+#api-fail,#photo-ask{margin:0 0 var(--s3)}
+#api-fail .photo-btn,#photo-ask .photo-btn{margin-top:10px}
+.rv .seen{margin:0 0 var(--s3);background:var(--accent-soft)}
+#more.hidden-more{display:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 /* Палитра и лицензированные шрифты по предоставленному визуальному ориентиру. */
@@ -230,7 +240,15 @@ html.dark body{background-color:var(--bg);background-image:radial-gradient(ellip
     <textarea id="products" aria-label="Какие продукты у вас есть?" rows="3" maxlength="500" placeholder="Например: курица, рис, морковь, лук"></textarea>
     <p class="hint">Вода, соль и перец есть всегда — их писать не нужно.</p>
     <button class="photo-btn" id="photo" type="button">📷 Сфотографировать продукты</button>
-    <p class="photo-hint">Нажмите — в чате расскажу, как снять продукты на камеру.</p>
+    <input id="photo-input" type="file" accept="image/*" capture="environment" aria-label="Сфотографировать продукты">
+    <p class="photo-hint">Снимите продукты прямо здесь — рецепт появится в приложении.</p>
+    <div id="photo-preview-wrap" hidden>
+      <img id="photo-preview" alt="Ваше фото">
+      <div class="row">
+        <button class="photo-btn" id="photo-send" type="button">Подбрать рецепт по фото</button>
+        <button class="btn2" id="photo-retake" type="button">Снять ещё раз</button>
+      </div>
+    </div>
   </section>
 
   <section class="card">
@@ -250,6 +268,14 @@ html.dark body{background-color:var(--bg);background-image:radial-gradient(ellip
   <section class="card" id="recipe-card" hidden>
     <div class="card-h"><h2>Ваш рецепт</h2></div>
     <p class="hint" id="recipe-status" hidden>Готовлю рецепт…</p>
+    <div id="api-fail" hidden>
+      <p>Не получилось, попробуйте ещё раз</p>
+      <button class="photo-btn" id="retry" type="button">Попробовать ещё раз</button>
+    </div>
+    <div id="photo-ask" hidden>
+      <p id="photo-ask-text"></p>
+      <button class="photo-btn" id="photo-ask-retake" type="button">Снять ещё раз</button>
+    </div>
     <div id="recipe"></div>
     <button class="photo-btn" id="more" type="button">Получить другой рецепт</button>
   </section>
@@ -275,11 +301,10 @@ html.dark body{background-color:var(--bg);background-image:radial-gradient(ellip
 <script>
 (function(){
 "use strict";
-var BOT = "gulnara_recbot";
 var tg = (window.Telegram && window.Telegram.WebApp) || null;
 var inTelegram = !!(tg && tg.platform && tg.platform !== "unknown");
 
-// Порядок списков важен: бот расшифровывает ссылку по номерам (см. bot_start_payload.patch).
+// Порядок кухонь тот же, что у бота.
 var CUISINES = ["Любая","Кавказская","Дагестанская","Похудение и ЗОЖ","Итальянская","Турецкая","Японская","Грузинская","Узбекская",
   "Испанская","Китайская","Корейская","Тайская","Индийская","Арабская/Ближний Восток","Мексиканская","Бразильская",
   "Французская","Греческая","Американская"];
@@ -359,124 +384,69 @@ KCAL.forEach(function(k){
   kbox.appendChild(b);
 });
 
-/* ---------- передача запроса боту ----------
-   1) Если приложение открыто кнопкой клавиатуры в чате — Telegram.WebApp.sendData (рецепт придёт в чат, окно закроется).
-   2) Во всех остальных случаях (кнопка меню «Рецепты», инлайн-кнопка, обычный браузер) sendData Telegram молча
-      игнорирует. Тогда открываем ссылку t.me/gulnara_recbot?start=<код>: бот получает «/start <код>» и отвечает рецептом.
-   Код: [действие][кухня][народ][ккал] + продукты (каждая буква = 1 символ), всего до 64 символов A-Z a-z 0-9 _ -. */
-var B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-var TXT = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя ,-.0123456789"; // 47 знаков, индекс → символ B64
-var ACT = {recipe:"r", more:"m", without:"w"};
-function packText(s, room){
-  s = String(s || "").toLowerCase().replace(/[\n;\/]+/g, ",").replace(/[^абвгдеёжзийклмнопрстуфхцчшщъыьэюя ,\-.0-9]+/g, " ")
-       .replace(/\s*,\s*/g, ",").replace(/,+/g, ",").replace(/\s+/g, " ").replace(/^[ ,]+|[ ,]+$/g, "");
-  var cut = false;
-  if (s.length > room){ cut = true; var t = s.slice(0, room); var k = t.lastIndexOf(","); s = (k > 8 ? t.slice(0, k) : t).trim(); }
-  var out = ""; for (var i = 0; i < s.length; i++){ var j = TXT.indexOf(s[i]); if (j >= 0) out += B64[j]; }
-  return {code: out, text: s, cut: cut};
-}
-function buildStart(action, text){
-  var head = ACT[action] + B64[Math.max(0, CUISINES.indexOf(state.cuisine))] +
-             B64[state.people ? PEOPLES.indexOf(state.people) + 1 : 0] +
-             B64[Math.max(0, KCAL.findIndex(function(k){ return k[0] === state.kcal; }))];
-  var p = packText(text, 64 - head.length);
-  return {param: head + p.code, cut: p.cut, sent: p.text};
-}
-function launchMode(){
-  if (!tg || !inTelegram) return "browser";
-  var u = tg.initDataUnsafe || {};
-  // query_id есть, когда открыто кнопкой меню / инлайн-кнопкой / ссылкой; тогда sendData не работает.
-  return u.query_id ? "menu" : "keyboard";
-}
+/* ---------- запросы только через API, без глубоких ссылок в чат (из-за них появлялось «/start») ---------- */
 var busy = false;
+var lastRetry = null;
+var lastPhotoData = null;
 function setBusy(on, label){
   busy = on; var g = $("go"); g.classList.toggle("busy", on); g.disabled = on;
   $("go-txt").textContent = label || "Подобрать рецепт";
-  var ph = $("photo"); if (ph) ph.disabled = on;
-  var mo = $("more"); if (mo) mo.disabled = on;
+  ["photo","photo-send","photo-retake","photo-ask-retake","more","retry"].forEach(function(id){
+    var el = $(id); if (el) el.disabled = on;
+  });
 }
-function openDeepLink(action, text){
-  var s = buildStart(action, text);
-  var url = "https://t.me/" + BOT + "?start=" + s.param;
-  toast(s.cut ? "В чат уйдут первые продукты — остальные допишите сообщением." : "Открываю чат с ботом — рецепт придёт туда.");
-  if (tg && inTelegram){
-    var ok = safeCall(function(){ tg.openTelegramLink(url); return true; });
-    if (!ok){ location.href = url; }
-    setTimeout(function(){ safeCall(function(){ tg.close(); }); }, 600);
-  } else {
-    location.href = url;
-  }
-  return url;
-}
-function send(action, extra, text){
-  if (busy) return;
-  var payload = JSON.stringify(Object.assign({cuisine:state.cuisine, people:state.people, kcal:state.kcal,
-    healthy: state.cuisine === "Похудение и ЗОЖ"}, extra, {a: action}));
-  var mode = launchMode();
-  window.__lastSend = {mode: mode};
-  haptic("ok");
-  setBusy(true, "Отправляю…");
-  if (mode === "keyboard"){
-    var sent = safeCall(function(){ tg.sendData(payload); return true; });
-    window.__lastSend.via = sent ? "sendData" : "deeplink";
-    if (!sent){ window.__lastSend.url = openDeepLink(action, text); return; }
-    // Если окно не закрылось (Telegram проигнорировал sendData) — запасной путь через ссылку.
-    setTimeout(function(){ if (document.visibilityState === "visible"){ window.__lastSend.via = "sendData+deeplink"; window.__lastSend.url = openDeepLink(action, text); setTimeout(function(){ setBusy(false); }, 1500); } }, 2500);
-    return;
-  }
-  window.__lastSend.via = "deeplink";
-  window.__lastSend.url = openDeepLink(action, text);
-  setTimeout(function(){ setBusy(false); }, 2500);
-}
-
-
-function openPhotoLink(){
-  var url = "https://t.me/" + BOT + "?start=photo";
-  toast("Открываю чат — там расскажу, как прислать фото.");
-  if (tg && inTelegram){
-    var ok = safeCall(function(){ tg.openTelegramLink(url); return true; });
-    if (!ok){ location.href = url; }
-    setTimeout(function(){ safeCall(function(){ tg.close(); }); }, 600);
-  } else {
-    location.href = url;
-  }
-  return url;
-}
-function sendPhotoRequest(){
-  if (busy) return;
-  var payload = JSON.stringify({action:"photo"});
-  var mode = launchMode();
-  window.__lastSend = {mode: mode, action: "photo"};
-  haptic("ok");
-  setBusy(true, "Открываю чат…");
-  if (mode === "keyboard"){
-    var sent = safeCall(function(){ tg.sendData(payload); return true; });
-    window.__lastSend.via = sent ? "sendData" : "deeplink";
-    if (!sent){ window.__lastSend.url = openPhotoLink(); return; }
-    // Если окно не закрылось (Telegram проигнорировал sendData) — запасной путь через ссылку.
-    setTimeout(function(){ if (document.visibilityState === "visible"){ window.__lastSend.via = "sendData+deeplink"; window.__lastSend.url = openPhotoLink(); setTimeout(function(){ setBusy(false); }, 1500); } }, 2500);
-    return;
-  }
-  window.__lastSend.via = "deeplink";
-  window.__lastSend.url = openPhotoLink();
-  setTimeout(function(){ setBusy(false); }, 2500);
-}
-
 function showRecipeCard(){
   var c = $("recipe-card"); if (c) c.hidden = false;
   document.body.classList.add("has-recipe");
 }
+function hideNotices(){
+  var f = $("api-fail"); if (f) f.hidden = true;
+  var a = $("photo-ask"); if (a) a.hidden = true;
+}
+function showFail(retryFn){
+  showRecipeCard();
+  hideNotices();
+  var status = $("recipe-status"); if (status) status.hidden = true;
+  var box = $("recipe"); if (box) box.innerHTML = "";
+  var more = $("more"); if (more) more.classList.add("hidden-more");
+  var fail = $("api-fail"); if (fail) fail.hidden = false;
+  lastRetry = retryFn || lastRetry;
+  haptic("error");
+}
+function showPhotoAsk(message){
+  showRecipeCard();
+  hideNotices();
+  var status = $("recipe-status"); if (status) status.hidden = true;
+  var box = $("recipe"); if (box) box.innerHTML = "";
+  var more = $("more"); if (more) more.classList.add("hidden-more");
+  var ask = $("photo-ask"); var txt = $("photo-ask-text");
+  if (txt) txt.textContent = message || "Сфотографируйте ближе или напишите продукты.";
+  if (ask) ask.hidden = false;
+  haptic("error");
+}
+function showRecipe(d){
+  hideNotices();
+  var status = $("recipe-status"); if (status) status.hidden = true;
+  var more = $("more"); if (more) more.classList.remove("hidden-more");
+  renderRecipe(d, $("recipe"));
+}
+
+function apiHeaders(){
+  return {"Content-Type": "application/json", "X-Telegram-Init-Data": (tg && tg.initData) || ""};
+}
+function canUseApi(){
+  return !!(API && tg && inTelegram && tg.initData);
+}
+
 function requestRecipe(action, extra, text){
-  function fallback(){
-    toast("Рецепт придёт в чат.");
-    if (action === "more") send("more", {}, "");
-    else send("recipe", {products: (extra && extra.products) || text || ""}, text || "");
-  }
-  if (!(API && tg && inTelegram && tg.initData)){ fallback(); return; }
+  lastRetry = function(){ requestRecipe(action, extra, text); };
+  if (!canUseApi()){ showFail(lastRetry); return; }
   setBusy(true, "Подбираю рецепт…");
   showRecipeCard();
+  hideNotices();
   var status = $("recipe-status");
   if (status){ status.hidden = false; status.textContent = "Готовлю рецепт…"; }
+  var more = $("more"); if (more) more.classList.add("hidden-more");
   haptic("ok");
   var ctrl = window.AbortController ? new AbortController() : null;
   var timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 90000);
@@ -484,20 +454,100 @@ function requestRecipe(action, extra, text){
     healthy: state.cuisine === "Похудение и ЗОЖ", deliver: true, a: action}, extra || {});
   fetch(API + "/recipe", {
     method: "POST",
-    headers: {"Content-Type": "application/json", "X-Telegram-Init-Data": tg.initData},
+    headers: apiHeaders(),
     body: JSON.stringify(body),
     signal: ctrl && ctrl.signal
   }).then(function(r){ return r.json().then(function(d){ return {ok: r.ok, d: d}; }, function(){ return {ok: false, d: null}; }); })
   .then(function(res){
     clearTimeout(timer);
     if (res.ok && res.d && (res.d.name || res.d.title) && $("recipe")){
-      if (status) status.hidden = true;
-      renderRecipe(res.d, $("recipe"));
-      setBusy(false);
+      showRecipe(res.d); setBusy(false);
     } else {
-      setBusy(false); fallback();
+      setBusy(false); showFail(lastRetry);
     }
-  }).catch(function(){ clearTimeout(timer); setBusy(false); fallback(); });
+  }).catch(function(){ clearTimeout(timer); setBusy(false); showFail(lastRetry); });
+}
+
+function downscaleFile(file, cb){
+  if (!file){ cb(null); return; }
+  var url = URL.createObjectURL(file);
+  var img = new Image();
+  img.onload = function(){
+    var w = img.width, h = img.height, max = 1280;
+    var s = Math.min(1, max / Math.max(w, h) || 1);
+    var c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(w * s)); c.height = Math.max(1, Math.round(h * s));
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    c.toBlob(function(blob){
+      if (!blob){ cb(null); return; }
+      var r = new FileReader();
+      r.onload = function(){ cb(String(r.result || "")); };
+      r.onerror = function(){ cb(null); };
+      r.readAsDataURL(blob);
+    }, "image/jpeg", 0.8);
+  };
+  img.onerror = function(){ URL.revokeObjectURL(url); cb(null); };
+  img.src = url;
+}
+
+function sendPhoto(dataUrl){
+  lastPhotoData = dataUrl;
+  lastRetry = function(){ if (lastPhotoData) sendPhoto(lastPhotoData); else openCamera(); };
+  if (!canUseApi()){ showFail(lastRetry); return; }
+  if (!dataUrl){ toast("Не получилось прочитать фото. Снимите ещё раз.", true); return; }
+  setBusy(true, "Смотрю фото…");
+  showRecipeCard();
+  hideNotices();
+  var status = $("recipe-status");
+  if (status){ status.hidden = false; status.textContent = "Смотрю фото и подбираю рецепт…"; }
+  var more = $("more"); if (more) more.classList.add("hidden-more");
+  haptic("ok");
+  var ctrl = window.AbortController ? new AbortController() : null;
+  var timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 180000);
+  var body = {image: dataUrl, cuisine:state.cuisine, people:state.people, kcal:state.kcal,
+    healthy: state.cuisine === "Похудение и ЗОЖ", deliver: true};
+  fetch(API + "/photo", {
+    method: "POST",
+    headers: apiHeaders(),
+    body: JSON.stringify(body),
+    signal: ctrl && ctrl.signal
+  }).then(function(r){ return r.json().then(function(d){ return {ok: r.ok, status: r.status, d: d}; }, function(){ return {ok: false, d: null}; }); })
+  .then(function(res){
+    clearTimeout(timer);
+    setBusy(false);
+    if (res.ok && res.d && (res.d.name || res.d.title) && $("recipe")){
+      showRecipe(res.d);
+      return;
+    }
+    if (res.ok && res.d && res.d.need_retake){
+      showPhotoAsk(res.d.message || "Сфотографируйте ближе или напишите продукты.");
+      return;
+    }
+    if (res.ok && res.d && res.d.message && !res.d.name){
+      showPhotoAsk(res.d.message);
+      return;
+    }
+    showFail(lastRetry);
+  }).catch(function(){ clearTimeout(timer); setBusy(false); showFail(lastRetry); });
+}
+
+function openCamera(){
+  var inp = $("photo-input");
+  if (inp){ inp.value = ""; inp.click(); }
+}
+
+function onPhotoChosen(file){
+  if (!file) return;
+  if (file.size > 12 * 1024 * 1024){ toast("Фото слишком большое. Снимите ещё раз.", true); return; }
+  downscaleFile(file, function(dataUrl){
+    if (!dataUrl){ toast("Не получилось прочитать фото. Снимите ещё раз.", true); return; }
+    var wrap = $("photo-preview-wrap"), img = $("photo-preview");
+    if (img) img.src = dataUrl;
+    if (wrap) wrap.hidden = false;
+    lastPhotoData = dataUrl;
+    sendPhoto(dataUrl);
+  });
 }
 
 $("go").addEventListener("click", function(){
@@ -511,7 +561,15 @@ $("go").addEventListener("click", function(){
   if (busy) return;
   requestRecipe("recipe", {products: p.slice(0, 500)}, p);
 });
-$("photo").addEventListener("click", function(){ sendPhotoRequest(); });
+$("photo").addEventListener("click", function(){ if (!busy) openCamera(); });
+$("photo-input").addEventListener("change", function(){
+  var f = this.files && this.files[0];
+  if (f) onPhotoChosen(f);
+});
+$("photo-send").addEventListener("click", function(){ if (!busy && lastPhotoData) sendPhoto(lastPhotoData); });
+$("photo-retake").addEventListener("click", function(){ if (!busy) openCamera(); });
+$("photo-ask-retake").addEventListener("click", function(){ if (!busy) openCamera(); });
+$("retry").addEventListener("click", function(){ if (!busy && lastRetry) lastRetry(); });
 $("more").addEventListener("click", function(){ if (busy) return; requestRecipe("more", {}, ""); });
 [].forEach.call(document.querySelectorAll("[data-href]"), function(a){
   a.addEventListener("click", function(){
@@ -556,7 +614,11 @@ function renderRecipe(d, box){
   function draw(){
     var k = num(d.kcal_per_serving), pg = num(d.portion_g), f = (per100 && pg) ? 100 / pg : 1, grp = null;
     var n = function(v, u){ v = num(v); return v == null ? "—" : Math.round(v * f) + (u || ""); };
-    var h = '<div class="rv"><h3>' + esc(d.name || d.title) + '</h3><div class="cu">' + esc(d.cuisine || "") + '</div>';
+    var h = '<div class="rv">';
+    if (d.recognized_text || (d.recognized || []).length){
+      h += '<div class="box seen">' + esc(d.recognized_text || ('Я вижу: ' + (d.recognized || []).join(', ') + '.')) + '</div>';
+    }
+    h += '<h3>' + esc(d.name || d.title) + '</h3><div class="cu">' + esc(d.cuisine || "") + '</div>';
     if (d.intro) h += '<div>' + esc(d.intro) + '</div>';
     h += '<div class="facts"><div class="fact">Готово через<b>' + esc(d.time || "—") + '</b></div>' +
          '<div class="fact">Порции<b>' + esc(serv) + '</b></div>' +
