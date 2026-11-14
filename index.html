@@ -218,10 +218,74 @@ textarea,input[type=text]{background:var(--surface-2);border-color:transparent}t
 html.dark body{background-color:var(--bg);background-image:radial-gradient(ellipse at 100% 35%,rgba(143,154,122,.08),transparent 45%)}
 @media(max-width:340px){.head{min-height:268px;padding:24px 19px}.head h1{font-size:35px}.hero-credit{font-size:9px}}
 
+/* ===== Двухшаговый сценарий: страница 1 — ввод, страница 2 — ожидание и рецепт ===== */
+.view{min-width:0}
+@media (prefers-reduced-motion:no-preference){.view.enter{animation:kitchen-enter .32s ease-out both}}
+body.on-result{padding-bottom:calc(var(--safe-bottom) + 24px)}
+body.on-result .bar{display:none}
+.seg.kc{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.seg.kc button{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;padding:10px 12px;min-height:58px;text-align:left;white-space:normal;color:var(--ink)}
+.seg.kc button b{font-size:15px;font-weight:700;line-height:1.2}
+.seg.kc button small{font-size:12px;font-weight:500;color:var(--muted);line-height:1.25}
+.seg.kc button[aria-pressed=true]{background:var(--surface);box-shadow:0 0 0 2px var(--accent) inset,0 1px 3px rgba(59,42,31,.12)}
+.seg.kc button[aria-pressed=true] small{color:var(--accent)}
+.topnav{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+.back{appearance:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  border-radius:var(--r-pill);padding:8px 14px 8px 10px;font-size:14px;font-weight:650;cursor:pointer;box-shadow:var(--shadow)}
+.back{flex:none;white-space:nowrap;overflow-wrap:normal}
+.back:active{transform:scale(.97)}
+.ghost{padding:20px 18px}.ghost i{display:block;height:14px;border-radius:7px;margin:0 0 12px;background:linear-gradient(100deg,var(--surface-2) 30%,var(--surface) 50%,var(--surface-2) 70%);background-size:200% 100%}
+.ghost i:first-child{height:22px;width:70%}.ghost i:nth-child(3){width:85%}.ghost i:last-child{width:55%;margin:0}
+@media (prefers-reduced-motion:no-preference){.ghost i{animation:shimmer 1.5s linear infinite}}
+.req-sum{font-size:13px;color:var(--muted);line-height:1.35;min-width:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+/* ожидание: кулинарная обложка, кастрюля с паром, бегущая полоса */
+.cook{position:relative;overflow:hidden;isolation:isolate;border-radius:26px;min-height:340px;padding:30px 22px 28px;margin-bottom:12px;color:#fffdf7;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  background-color:#263c30;background-image:linear-gradient(165deg,rgba(21,39,28,.90) 0%,rgba(21,39,28,.70) 55%,rgba(21,39,28,.55) 100%),url('./assets/kitchen-cover-v2.webp');
+  background-size:cover;background-position:center 43%;box-shadow:0 18px 38px rgba(39,51,33,.18)}
+.pot{width:120px;height:120px;position:relative;margin-bottom:14px}
+.pot svg{display:block;width:120px;height:120px;overflow:visible}
+.pot .steam path{fill:none;stroke:#f5f0e6;stroke-width:3;stroke-linecap:round;opacity:0}
+.pot .lid{transform-origin:60px 58px}
+@media (prefers-reduced-motion:no-preference){
+  .pot .steam path{animation:steam 2.4s ease-in-out infinite}
+  .pot .steam path:nth-child(2){animation-delay:.8s}.pot .steam path:nth-child(3){animation-delay:1.6s}
+  .pot .lid{animation:lid 2.4s ease-in-out infinite}
+  .cook-bar i{animation:bar 1.8s ease-in-out infinite}
+  .cook-status.swap{animation:kitchen-enter .4s ease-out both}
+  .dish .skel{animation:shimmer 1.5s linear infinite}
+}
+@keyframes steam{0%{opacity:0;transform:translateY(8px)}30%{opacity:.85}100%{opacity:0;transform:translateY(-14px)}}
+@keyframes lid{0%,100%{transform:translateY(0) rotate(0)}45%{transform:translateY(-2px) rotate(-3deg)}55%{transform:translateY(-1px) rotate(2deg)}}
+@keyframes bar{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+@keyframes shimmer{to{background-position:-200% 0}}
+.cook-kicker{display:block;color:#e3dbc6;font-size:10px;font-weight:800;letter-spacing:.17em;text-transform:uppercase;margin-bottom:10px}
+.cook-status{font:700 27px/1.1 CormorantGaramond,Georgia,serif;letter-spacing:-.02em;margin:0 0 8px;min-height:30px}
+.cook-sub{font-size:13px;color:#e8e2d2;margin:0 0 18px;max-width:270px;line-height:1.45}
+.cook-bar{width:190px;height:4px;border-radius:999px;background:rgba(255,255,255,.18);overflow:hidden}
+.cook-bar i{display:block;width:40%;height:100%;border-radius:inherit;background:#e3c48f}
+/* фото блюда: заглушка с переливом, пока картинка готовится */
+.dish{position:relative;aspect-ratio:1/1;width:100%;border-radius:20px;overflow:hidden;background:var(--surface-2);margin:0 0 14px}
+.dish .skel{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:13px;
+  background:linear-gradient(100deg,var(--surface-2) 30%,var(--surface) 50%,var(--surface-2) 70%);background-size:200% 100%}
+.dish .skel svg{opacity:.55}
+.dish img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s ease;margin:0;border-radius:0}
+.dish.ready img{opacity:1}.dish.ready .skel{display:none}
+.notice{text-align:center;padding:26px 18px}
+.notice .big{font-size:40px;line-height:1;margin-bottom:10px}
+.notice p{margin:0 0 6px}
+.notice .row{margin-top:14px;flex-direction:column}
+.notice .photo-btn{margin-top:0}
+.r-actions{display:grid;gap:8px;margin-top:16px}
+.r-actions .photo-btn{margin-top:0}
+.rv .season{background:var(--accent-soft)}
+.rv .season ul{margin:6px 0 0;padding-left:18px}
+.rv .season .opt{color:var(--muted);font-size:13px;margin-top:6px}
 </style>
 </head>
 <body>
 <div class="wrap">
+<main class="view" id="view-input">
   <header class="head">
     <div class="logo" aria-hidden="true">
       <svg width="30" height="30" viewBox="0 0 64 64"><g fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -235,7 +299,6 @@ html.dark body{background-color:var(--bg);background-image:radial-gradient(ellip
       <p>Вдохновение для вкусных блюд из того, что есть дома.</p>
       <span class="badge">✓ Халяль</span>
     </div>
-    <span class="hero-credit">Изображение создано ИИ</span>
   </header>
 
   <section class="card" id="prod-card">
@@ -265,30 +328,10 @@ html.dark body{background-color:var(--bg);background-image:radial-gradient(ellip
 
   <section class="card">
     <div class="card-h"><span class="step">3</span><h2>Калорийность порции</h2></div>
-    <div class="seg" id="kcal" role="group" aria-label="Калорийность"></div>
+    <div class="seg kc" id="kcal" role="group" aria-label="Калорийность"></div>
   </section>
 
-  <section class="card" id="recipe-card" hidden>
-    <div class="card-h"><h2 id="recipe-card-title">Ваш рецепт</h2></div>
-    <p class="hint" id="recipe-status" hidden>Готовлю рецепт…</p>
-    <div id="api-fail" hidden>
-      <p id="api-fail-text">Не получилось, попробуйте ещё раз</p>
-      <button class="photo-btn" id="retry" type="button">Попробовать ещё раз</button>
-    </div>
-    <div id="photo-ask" hidden>
-      <p id="photo-ask-text"></p>
-      <button class="photo-btn" id="photo-ask-retake" type="button">Снять ещё раз</button>
-    </div>
-    <div id="clarify-box" hidden aria-live="polite">
-      <p id="clarify-text"></p>
-      <div id="clarify-buttons"></div>
-      <label id="clarify-label" for="clarify-input">Или напишите ответ</label>
-      <input id="clarify-input" type="text" maxlength="200" autocomplete="off" placeholder="Ваш ответ">
-      <button class="photo-btn" id="clarify-send" type="button">Ответить</button>
-    </div>
-    <div id="recipe"></div>
-    <button class="photo-btn" id="more" type="button">Получить другой рецепт</button>
-  </section>
+
 
 
   <section class="card">
@@ -302,6 +345,71 @@ html.dark body{background-color:var(--bg);background-image:radial-gradient(ellip
     </div>
     <p class="foot">Поделитесь рецептом с близкими 🤍</p>
   </section>
+</main>
+
+<main class="view" id="view-result" hidden aria-live="polite">
+  <div class="topnav">
+    <button class="back" id="back" type="button" aria-label="Назад к продуктам"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Продукты</button>
+    <div class="req-sum" id="req-sum"></div>
+  </div>
+
+  <section class="cook" id="r-loading" hidden>
+    <div class="pot" aria-hidden="true">
+      <svg viewBox="0 0 120 120">
+        <g class="steam"><path d="M44 40c-6-6 6-10 0-18"/><path d="M60 38c-6-6 6-10 0-18"/><path d="M76 40c-6-6 6-10 0-18"/></g>
+        <g class="lid"><rect x="30" y="52" width="60" height="7" rx="3.5" fill="#e3c48f"/><rect x="54" y="45" width="12" height="8" rx="3" fill="#e3c48f"/></g>
+        <path d="M26 62h68v20c0 12-10 20-22 20H48c-12 0-22-8-22-20z" fill="#f5f0e6"/>
+        <path d="M26 66H16M94 66h10" stroke="#f5f0e6" stroke-width="5" stroke-linecap="round"/>
+        <path d="M34 74h52" stroke="#c9bfa8" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+      </svg>
+    </div>
+    <span class="cook-kicker">Готовим для вас</span>
+    <p class="cook-status" id="cook-status">Подбираю блюдо…</p>
+    <p class="cook-sub" id="cook-sub">Обычно это занимает 10–30 секунд. Фото блюда появится следом.</p>
+    <div class="cook-bar" aria-hidden="true"><i></i></div>
+  </section>
+  <section class="card ghost" id="r-ghost" hidden aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></section>
+
+  <section class="card notice" id="r-fail" hidden>
+    <div class="big" aria-hidden="true">🍲</div>
+    <p id="api-fail-text"><b>Не получилось, попробуйте ещё раз</b></p>
+    <div class="row">
+      <button class="photo-btn" id="retry" type="button">Попробовать ещё раз</button>
+      <button class="btn2" id="fail-back" type="button">Изменить продукты</button>
+    </div>
+  </section>
+
+  <section class="card notice" id="photo-ask" hidden>
+    <div class="big" aria-hidden="true">📷</div>
+    <p id="photo-ask-text"></p>
+    <div class="row">
+      <button class="photo-btn" id="photo-ask-retake" type="button">Снять ещё раз</button>
+      <button class="btn2" id="ask-back" type="button">Написать продукты</button>
+    </div>
+  </section>
+
+  <section class="card" id="clarify-box" hidden>
+    <div class="card-h"><h2>Уточним</h2></div>
+    <p id="clarify-text"></p>
+    <div id="clarify-buttons"></div>
+    <label id="clarify-label" class="hint" for="clarify-input">Или напишите ответ</label>
+    <input id="clarify-input" type="text" maxlength="200" autocomplete="off" placeholder="Ваш ответ">
+    <button class="photo-btn" id="clarify-send" type="button">Ответить</button>
+    <button class="btn2" id="clarify-back" type="button" style="width:100%;margin-top:8px">Изменить продукты</button>
+  </section>
+
+  <section class="card" id="recipe-card" hidden>
+    <div class="dish" id="dish" hidden>
+      <div class="skel" id="dish-skel"><svg width="42" height="42" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="13" r="4" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M3 4v6M5 4v6M3 10h2M4 10v10M20 4c-2 1-2 5-2 7h2v9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span>Готовлю фото блюда…</span></div>
+      <img id="dish-img" alt="Фото блюда">
+    </div>
+    <div id="recipe"></div>
+    <div class="r-actions">
+      <button class="photo-btn" id="more" type="button">Получить другой рецепт</button>
+      <button class="btn2" id="recipe-back" type="button">Изменить продукты</button>
+    </div>
+  </section>
+</main>
 </div>
 
 <div class="bar"><button class="primary" id="go" type="button"><span class="spin" aria-hidden="true"></span><span id="go-txt">Подобрать рецепт</span></button></div>
@@ -320,8 +428,9 @@ var CUISINES = ["Любая","Кавказская","Дагестанская","
 var VISIBLE = 9; // остальные — под кнопкой «Ещё кухни»
 var PEOPLES = ["аварская","даргинская","кумыкская","лезгинская","лакская","табасаранская","ногайская","рутульская",
   "цахурская","агульская","татская","азербайджанская"];
-var KCAL = [["","Любая"],["lt300","до 300"],["300_500","300–500"],["gt500","500+"]];
-var state = {cuisine:"Любая", people:"", kcal:""};
+// Те же диапазоны, что у бота (ce.KCAL_RANGES): lt300, 300_500, gt500; "any" — без ограничения.
+var KCAL = [["any","Неважно","любая калорийность"],["lt300","Лёгкое","до 300 ккал"],["300_500","Обычное","300–500 ккал"],["gt500","Сытное","от 500 ккал"]];
+var state = {cuisine:"Любая", people:"", kcal:"any"};
 // initData уходит только на наш Cloudflare-туннель (https://*.trycloudflare.com), не на чужие домены.
 var API = "", apiParam = new URLSearchParams(location.search).get("api");
 function allowedApi(href){
@@ -387,7 +496,9 @@ PEOPLES.forEach(function(p){
 });
 var kbox = $("kcal");
 KCAL.forEach(function(k){
-  var b = document.createElement("button"); b.type = "button"; b.textContent = k[1];
+  var b = document.createElement("button"); b.type = "button";
+  var bt = document.createElement("b"); bt.textContent = k[1]; var bs = document.createElement("small"); bs.textContent = k[2];
+  b.appendChild(bt); b.appendChild(bs);
   b.setAttribute("aria-pressed", k[0] === state.kcal ? "true" : "false");
   b.addEventListener("click", function(){ state.kcal = k[0]; [].forEach.call(kbox.children, function(x){ x.setAttribute("aria-pressed", x === b ? "true" : "false"); }); haptic("select"); });
   kbox.appendChild(b);
@@ -398,6 +509,55 @@ var busy = false;
 var lastRetry = null;
 var lastPhotoData = null;
 var clarificationNonce = "";
+var reqSeq = 0;             // номер текущего запроса: ответы на устаревшие запросы (после «Назад») игнорируются
+var view = "input";
+
+/* ---------- две страницы: ввод → ожидание/рецепт ---------- */
+function backButton(show){ safeCall(function(){
+  if (!tg || !inTelegram || !tg.BackButton || !tg.isVersionAtLeast || !tg.isVersionAtLeast("6.1")) return;
+  if (show) tg.BackButton.show(); else tg.BackButton.hide();
+}); }
+function showView(v){
+  view = v;
+  var a = $("view-input"), b = $("view-result");
+  a.hidden = v !== "input"; b.hidden = v !== "result";
+  var cur = v === "input" ? a : b; cur.classList.remove("enter"); void cur.offsetWidth; cur.classList.add("enter");
+  document.body.classList.toggle("on-result", v === "result");
+  backButton(v === "result");
+  window.scrollTo(0, 0);
+}
+function goBack(){
+  reqSeq++; stopLoader(); setBusy(false);
+  showView("input");
+}
+var PANES = ["r-loading","r-fail","photo-ask","clarify-box","recipe-card"];
+function showPane(id){ PANES.forEach(function(x){ var el = $(x); if (el) el.hidden = x !== id; }); $("r-ghost").hidden = id !== "r-loading"; }
+
+var LOAD_TEXT = ["Подбираю блюдо…","Сверяю продукты…","Проверяю шаги рецепта…","Считаю калории…","Почти готово…"];
+var LOAD_PHOTO = ["Рассматриваю фото…","Узнаю продукты…","Подбираю блюдо…","Проверяю шаги рецепта…","Почти готово…"];
+var loadTimer = null;
+function startLoader(list){
+  stopLoader(); showPane("r-loading");
+  var i = 0, st = $("cook-status");
+  st.textContent = list[0];
+  loadTimer = setInterval(function(){
+    i = Math.min(i + 1, list.length - 1); st.textContent = list[i];
+    st.classList.remove("swap"); void st.offsetWidth; st.classList.add("swap");
+    if (i === list.length - 1) { clearInterval(loadTimer); loadTimer = null; }
+  }, 3200);
+}
+function stopLoader(){ if (loadTimer){ clearInterval(loadTimer); loadTimer = null; } }
+
+function kcalLabel(){ for (var i = 0; i < KCAL.length; i++) if (KCAL[i][0] === state.kcal) return KCAL[i][1] + (state.kcal === "any" ? "" : " (" + KCAL[i][2] + ")"); return ""; }
+function setSummary(text){
+  var parts = [];
+  if (text) parts.push(text);
+  var cu = state.people ? ("Дагестанская, " + state.people) : state.cuisine;
+  if (cu && cu !== "Любая") parts.push(cu);
+  if (state.kcal && state.kcal !== "any") parts.push(kcalLabel());
+  $("req-sum").textContent = parts.join(" · ");
+}
+
 function setBusy(on, label){
   busy = on; var g = $("go"); g.classList.toggle("busy", on); g.disabled = on;
   $("go-txt").textContent = label || "Подобрать рецепт";
@@ -405,38 +565,28 @@ function setBusy(on, label){
     var el = $(id); if (el) el.disabled = on;
   });
 }
-function showRecipeCard(){
-  var c = $("recipe-card"); if (c) c.hidden = false;
-  document.body.classList.add("has-recipe");
-}
-function hideNotices(){
-  var f = $("api-fail"); if (f) f.hidden = true;
-  var a = $("photo-ask"); if (a) a.hidden = true;
-  var q = $("clarify-box"); if (q) q.hidden = true;
-}
 function showFail(retryFn, message){
-  var ft = $("api-fail-text"); if (ft) ft.textContent = message || "Не получилось, попробуйте ещё раз";
-  showRecipeCard();
-  hideNotices();
-  var status = $("recipe-status"); if (status) status.hidden = true;
-  var box = $("recipe"); if (box) box.innerHTML = "";
-  var more = $("more"); if (more) more.classList.add("hidden-more");
-  var fail = $("api-fail"); if (fail) fail.hidden = false;
-  lastRetry = retryFn || lastRetry;
+  stopLoader();
+  var ft = $("api-fail-text"); if (ft){ ft.innerHTML = ""; var b = document.createElement("b"); b.textContent = message || "Не получилось, попробуйте ещё раз"; ft.appendChild(b); }
+  lastRetry = retryFn || null;
+  var r = $("retry"); if (r) r.hidden = !lastRetry;
+  if (view !== "result") showView("result");
+  showPane("r-fail");
   haptic("error");
 }
-function busyMessage(res){
-  return (res && res.d && res.d.error === "busy" && res.d.message) ? String(res.d.message) : "";
+function errorMessage(res){
+  var d = res && res.d;
+  if (d && d.message && (d.error === "busy" || d.error === "paused" || d.error === "rate" || d.error === "server")) return String(d.message);
+  if (res && res.status === 401) return "Откройте приложение заново через кнопку «Рецепты» в чате с ботом.";
+  if (res && res.status === 0) return "Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.";
+  if (d && d.message) return String(d.message);
+  return "";
 }
 function showPhotoAsk(message){
-  showRecipeCard();
-  hideNotices();
-  var status = $("recipe-status"); if (status) status.hidden = true;
-  var box = $("recipe"); if (box) box.innerHTML = "";
-  var more = $("more"); if (more) more.classList.add("hidden-more");
-  var ask = $("photo-ask"); var txt = $("photo-ask-text");
+  stopLoader();
+  var txt = $("photo-ask-text");
   if (txt) txt.textContent = message || "Сфотографируйте ближе или напишите продукты.";
-  if (ask) ask.hidden = false;
+  showPane("photo-ask");
   haptic("error");
 }
 function submitClarification(value){
@@ -445,11 +595,7 @@ function submitClarification(value){
   requestRecipe("clarify", {answer:value.slice(0,200), nonce:clarificationNonce}, value);
 }
 function showClarification(data){
-  showRecipeCard(); hideNotices();
-  var title=$("recipe-card-title"); if (title) title.textContent="Уточним";
-  var status=$("recipe-status"); if (status) status.hidden=true;
-  var recipe=$("recipe"); if (recipe) recipe.innerHTML="";
-  var more=$("more"); if (more) more.classList.add("hidden-more");
+  stopLoader();
   clarificationNonce=String(data.nonce || "");
   var txt=$("clarify-text"); if (txt) txt.textContent=String(data.message || "Уточните, пожалуйста.");
   var choices=$("clarify-buttons");
@@ -466,15 +612,47 @@ function showClarification(data){
   var input=$("clarify-input"); if (input){ input.value=""; input.hidden=!clarificationNonce; }
   var label=$("clarify-label"); if (label) label.hidden=!clarificationNonce;
   var send=$("clarify-send"); if (send) send.hidden=!clarificationNonce;
-  if (!clarificationNonce && txt) txt.textContent += "\nНапишите продукты в поле выше и нажмите «Подобрать рецепт».";
-  var box=$("clarify-box"); if (box) box.hidden=false;
+  if (!clarificationNonce && txt) txt.textContent += "\nНажмите «Изменить продукты», допишите их и подберите рецепт снова.";
+  showPane("clarify-box");
 }
-function showRecipe(d){
-  hideNotices();
-  var title=$("recipe-card-title"); if (title) title.textContent="Ваш рецепт";
-  var status = $("recipe-status"); if (status) status.hidden = true;
-  var more = $("more"); if (more) more.classList.remove("hidden-more");
+
+/* фото блюда: рецепт показываем сразу, картинку подгружаем следом */
+function resetDish(show){
+  var dish = $("dish"), img = $("dish-img");
+  dish.classList.remove("ready"); img.onload = null; img.removeAttribute("src");
+  dish.hidden = !show;
+}
+function showDishImage(src, seq){
+  var dish = $("dish"), img = $("dish-img");
+  img.onload = function(){ if (seq === reqSeq) dish.classList.add("ready"); };
+  img.onerror = function(){ if (seq === reqSeq) dish.hidden = true; };
+  img.src = src;
+}
+function loadDishImage(token, seq, tries){
+  fetch(API + "/image", {method:"POST", headers: apiHeaders(), body: JSON.stringify({token: token})})
+  .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }, function(){ return {ok:false, d:null}; }); })
+  .then(function(res){
+    if (seq !== reqSeq) return;
+    if (res.ok && res.d && res.d.pending && tries < 8) { loadDishImage(token, seq, tries + 1); return; }
+    if (res.ok && res.d && typeof res.d.image === "string" && /^data:image\/(jpeg|png|webp);base64,/.test(res.d.image)) showDishImage(res.d.image, seq);
+    else $("dish").hidden = true;
+  }).catch(function(){
+    if (seq !== reqSeq) return;
+    if (tries < 2) setTimeout(function(){ if (seq === reqSeq) loadDishImage(token, seq, tries + 1); }, 2000);
+    else $("dish").hidden = true;
+  });
+}
+function showRecipe(d, seq){
+  stopLoader();
+  var token = typeof d.image_token === "string" ? d.image_token : "";
+  var direct = typeof d.image === "string" && /^(https:|data:image\/)/.test(d.image) ? d.image : "";
+  resetDish(!!(token || direct));
+  showPane("recipe-card");
   renderRecipe(d, $("recipe"));
+  if (direct) showDishImage(direct, seq);
+  else if (token) loadDishImage(token, seq, 0);
+  window.scrollTo(0, 0);
+  haptic("ok");
 }
 
 function apiHeaders(){
@@ -483,39 +661,40 @@ function apiHeaders(){
 function canUseApi(){
   return !!(API && tg && inTelegram && tg.initData);
 }
+function postJson(path, body, timeoutMs){
+  var ctrl = window.AbortController ? new AbortController() : null;
+  var timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, timeoutMs);
+  return fetch(API + path, {method:"POST", headers: apiHeaders(), body: JSON.stringify(body), signal: ctrl && ctrl.signal})
+    .then(function(r){ clearTimeout(timer); return r.json().then(function(d){ return {ok:r.ok, status:r.status, d:d}; }, function(){ return {ok:false, status:r.status, d:null}; }); },
+          function(){ clearTimeout(timer); return {ok:false, status:0, d:null}; });
+}
 
 function requestRecipe(action, extra, text){
-  lastRetry = function(){ requestRecipe(action, extra, text); };
-  if (!canUseApi()){ showFail(lastRetry); return; }
+  var retry = function(){ requestRecipe(action, extra, text); };
+  if (action === "recipe") setSummary(text);
+  if (view !== "result") showView("result");
+  if (!canUseApi()){ showFail(null, "Откройте приложение через кнопку «Рецепты» в чате с ботом."); return; }
+  var seq = ++reqSeq;
   setBusy(true, "Подбираю рецепт…");
-  showRecipeCard();
-  hideNotices();
-  var status = $("recipe-status");
-  if (status){ status.hidden = false; status.textContent = "Готовлю рецепт…"; }
-  var more = $("more"); if (more) more.classList.add("hidden-more");
-  haptic("ok");
-  var ctrl = window.AbortController ? new AbortController() : null;
-  var timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 90000);
+  startLoader(LOAD_TEXT);
+  haptic("select");
   var body = Object.assign({cuisine:state.cuisine, people:state.people, kcal:state.kcal,
     healthy: state.cuisine === "Похудение и ЗОЖ", deliver: true, a: action}, extra || {});
-  fetch(API + "/recipe", {
-    method: "POST",
-    headers: apiHeaders(),
-    body: JSON.stringify(body),
-    signal: ctrl && ctrl.signal
-  }).then(function(r){ return r.json().then(function(d){ return {ok: r.ok, d: d}; }, function(){ return {ok: false, d: null}; }); })
-  .then(function(res){
-    clearTimeout(timer);
+  postJson("/recipe", body, 90000).then(function(res){
+    if (seq !== reqSeq) return;
+    setBusy(false);
     if (res.ok && res.d && res.d.clarify && res.d.message){
-      setBusy(false); showClarification(res.d);
-    } else if (res.ok && res.d && (res.d.name || res.d.title) && $("recipe")){
-      clarificationNonce=""; showRecipe(res.d); setBusy(false);
+      showClarification(res.d);
+    } else if (res.ok && res.d && (res.d.name || res.d.title)){
+      clarificationNonce=""; showRecipe(res.d, seq);
+    } else if (res.ok && res.d && res.d.message){
+      clarificationNonce=""; showClarification({message: res.d.message});   // ответ без рецепта (например, «это не еда»)
+    } else if (res.d && res.d.error === "stale_clarification"){
+      clarificationNonce=""; showFail(null, res.d.message);
     } else {
-      setBusy(false);
-      if (res.d && res.d.error === "stale_clarification") { clarificationNonce=""; showFail(null, res.d.message); }
-      else showFail(lastRetry, busyMessage(res));
+      showFail(retry, errorMessage(res));
     }
-  }).catch(function(){ clearTimeout(timer); setBusy(false); showFail(lastRetry); });
+  });
 }
 
 function downscaleFile(file, cb){
@@ -543,44 +722,25 @@ function downscaleFile(file, cb){
 
 function sendPhoto(dataUrl){
   lastPhotoData = dataUrl;
-  lastRetry = function(){ if (lastPhotoData) sendPhoto(lastPhotoData); else openCamera(); };
-  if (!canUseApi()){ showFail(lastRetry); return; }
+  var retry = function(){ if (lastPhotoData) sendPhoto(lastPhotoData); else openCamera(); };
   if (!dataUrl){ toast("Не получилось прочитать фото. Снимите ещё раз.", true); return; }
+  setSummary("По фото");
+  if (view !== "result") showView("result");
+  if (!canUseApi()){ showFail(null, "Откройте приложение через кнопку «Рецепты» в чате с ботом."); return; }
+  var seq = ++reqSeq;
   setBusy(true, "Смотрю фото…");
-  showRecipeCard();
-  hideNotices();
-  var status = $("recipe-status");
-  if (status){ status.hidden = false; status.textContent = "Смотрю фото и подбираю рецепт…"; }
-  var more = $("more"); if (more) more.classList.add("hidden-more");
-  haptic("ok");
-  var ctrl = window.AbortController ? new AbortController() : null;
-  var timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 180000);
+  startLoader(LOAD_PHOTO);
+  haptic("select");
   var body = {image: dataUrl, cuisine:state.cuisine, people:state.people, kcal:state.kcal,
     healthy: state.cuisine === "Похудение и ЗОЖ", deliver: true};
-  fetch(API + "/photo", {
-    method: "POST",
-    headers: apiHeaders(),
-    body: JSON.stringify(body),
-    signal: ctrl && ctrl.signal
-  }).then(function(r){ return r.json().then(function(d){ return {ok: r.ok, status: r.status, d: d}; }, function(){ return {ok: false, d: null}; }); })
-  .then(function(res){
-    clearTimeout(timer);
+  postJson("/photo", body, 180000).then(function(res){
+    if (seq !== reqSeq) return;
     setBusy(false);
-    if (res.ok && res.d && (res.d.name || res.d.title) && $("recipe")){
-      showRecipe(res.d);
-      return;
-    }
-    if (busyMessage(res)){ showFail(lastRetry, busyMessage(res)); return; }
-    if (res.ok && res.d && res.d.need_retake){
-      showPhotoAsk(res.d.message || "Сфотографируйте ближе или напишите продукты.");
-      return;
-    }
-    if (res.ok && res.d && res.d.message && !res.d.name){
-      showPhotoAsk(res.d.message);
-      return;
-    }
-    showFail(lastRetry);
-  }).catch(function(){ clearTimeout(timer); setBusy(false); showFail(lastRetry); });
+    if (res.ok && res.d && (res.d.name || res.d.title)){ showRecipe(res.d, seq); return; }
+    if (!res.ok){ showFail(retry, errorMessage(res)); return; }
+    if (res.d && res.d.message){ showPhotoAsk(res.d.message); return; }
+    showFail(retry, "");
+  });
 }
 
 function openCamera(){
@@ -610,6 +770,7 @@ $("go").addEventListener("click", function(){
     return;
   }
   if (busy) return;
+  box.blur();
   requestRecipe("recipe", {products: p.slice(0, 500)}, p);
 });
 $("clarify-send").addEventListener("click", function(){ submitClarification($("clarify-input").value); });
@@ -624,6 +785,8 @@ $("photo-retake").addEventListener("click", function(){ if (!busy) openCamera();
 $("photo-ask-retake").addEventListener("click", function(){ if (!busy) openCamera(); });
 $("retry").addEventListener("click", function(){ if (!busy && lastRetry) lastRetry(); });
 $("more").addEventListener("click", function(){ if (busy) return; requestRecipe("more", {}, ""); });
+["back","fail-back","ask-back","clarify-back","recipe-back"].forEach(function(id){ $(id).addEventListener("click", goBack); });
+if (tg && inTelegram) safeCall(function(){ tg.BackButton && tg.BackButton.onClick(goBack); });
 [].forEach.call(document.querySelectorAll("[data-href]"), function(a){
   a.addEventListener("click", function(){
     var url = a.getAttribute("data-href");
@@ -639,7 +802,7 @@ $("more").addEventListener("click", function(){ if (busy) return; requestRecipe(
 // v3: те же поля, что в JSON бота (name, cuisine, time, active_time, servings, difficulty, portion_g, ingredients[{group,item,amount}],
 // steps[строка | {title,text,min,tip}], kcal_per_serving, protein, fat, carbs, benefits, tip, serve, storage, allergens, equipment).
 function renderRecipe(d, box){
-  var esc = function(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); };
+  var esc = function(s){ return noAi(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); };
   var num = function(x){ var m = String(x == null ? "" : x).match(/\d+(?:[.,]\d+)?/); return m ? parseFloat(m[0].replace(",", ".")) : null; };
   var base = num(d.servings) || 1, serv = base, per100 = false;
   var fmt = function(v){ v = Math.round(v * 1000) / 1000; return String(v).replace(".", ","); };
@@ -687,6 +850,7 @@ function renderRecipe(d, box){
       if (i.group && i.group !== grp){ grp = i.group; h += '<div class="grp">' + esc(i.group) + '</div>'; }
       h += '<div class="ing"><span>' + esc(i.item || i.name) + '</span><span>' + esc(scale(i.amount || "")) + '</span></div>'; });
     if ((d.to_buy || []).length) h += '<div class="box">🧺 <b>Нужно докупить:</b> ' + d.to_buy.map(function(x){ return esc(x.item || x); }).join(", ") + '</div>';
+    h += seasoningsHtml(d, esc);
     if ((d.equipment || []).length) h += '<div class="chipline">🍳 Понадобится: ' + esc(d.equipment.join(", ")) + '</div>';
     if ((d.allergens || []).length) h += '<div class="chipline">⚠️ Аллергены: ' + esc(d.allergens.join(", ")) + '</div>';
     h += '<div class="sec">👩‍🍳 Приготовление</div>';
@@ -703,24 +867,39 @@ function renderRecipe(d, box){
            d.footer_links.map(function(l){ return '<div><a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.name) + '</a></div>'; }).join("") +
            '</div>';
     }
-    box.innerHTML = (d.image ? '<img src="' + esc(d.image) + '" alt=""><div class="note">Изображение создано ИИ</div>' : "") + h + '</div>';
+    box.innerHTML = h + '</div>';
     box.querySelectorAll("[data-p]").forEach(function(b){ b.onclick = function(){ per100 = b.getAttribute("data-p") === "1"; draw(); }; });
     box.querySelectorAll("[data-s]").forEach(function(b){ b.onclick = function(){ serv = Math.max(1, Math.min(20, serv + +b.getAttribute("data-s"))); draw(); }; });
   }
   draw();
-  if (box.id === "recipe") {
-    document.body.classList.add("has-recipe");
-    var card = box.closest(".card"), heading = card && card.querySelector(".card-h h2");
-    if (heading) heading.textContent = "Ваш рецепт";
-  }
+}
+// Пометки об автоматической генерации в мини-приложении не показываем (решение владельца).
+var AI_RE = /[(\[]?\s*(?:изображение|картинка|фото|рецепт|текст)?\s*(?:создан[аоы]?|сгенерирован[аоы]?|сделан[аоы]?|подготовлен[аоы]?|нарисован[аоы]?)\s+(?:с\s+помощью\s+)?(?:ии|нейросет[ьию]+|искусственн\S*\s+интеллект\S*|ai)(?![а-яёa-z])\s*[)\].!]?/gi;
+function noAi(s){ return String(s == null ? "" : s).replace(AI_RE, "").replace(/\s{2,}/g, " ").trim(); }
+// Приправы (необязательный блок): строка, список или {base, optional, note}. Неизвестные поля рецепта просто не показываем.
+function seasoningsHtml(d, esc){
+  var v = d.seasonings || d.seasoning || d.spices || d.optional_spices;
+  if (!v) return "";
+  var label = function(x){
+    if (x == null) return "";
+    if (typeof x === "string" || typeof x === "number") return String(x);
+    if (typeof x === "object") return [x.item || x.name || x.title || "", x.note || x.amount || x.why || ""].filter(Boolean).join(" — ");
+    return "";
+  };
+  var list = function(a){ a = (Array.isArray(a) ? a : [a]).map(label).filter(Boolean); return a; };
+  var h = '<div class="box season">🧂 <b>Приправы</b>';
+  if (typeof v === "string") h += '<div>' + esc(v) + '</div>';
+  else if (Array.isArray(v)) { var a = list(v); if (!a.length) return ""; h += '<div class="opt">По желанию, по вашему вкусу:</div><ul>' + a.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join("") + '</ul>'; }
+  else if (typeof v === "object") {
+    var base = list(v.base || v.basic || v.main || []), opt = list(v.optional || v.extra || v.by_choice || []), note = label(v.note || v.text || "");
+    if (!base.length && !opt.length && !note) return "";
+    if (base.length) h += '<div>Основа: ' + esc(base.join(", ")) + '</div>';
+    if (opt.length) h += '<div class="opt">По желанию:</div><ul>' + opt.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join("") + '</ul>';
+    if (note) h += '<div class="opt">' + esc(note) + '</div>';
+  } else return "";
+  return h + '</div>';
 }
 window.renderRecipe = renderRecipe;
-if (API && tg && tg.initData && $("recipe")){
-  fetch(API.replace(/\/$/, "") + "/last", {headers: {"X-Telegram-Init-Data": tg.initData}}).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
-    if (!d || !(d.name || d.title) || !$("recipe")) return;
-    renderRecipe(d, $("recipe"));
-  }).catch(function(){});
-}
 })();
 </script>
 </body>
