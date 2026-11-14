@@ -147,6 +147,15 @@ textarea:focus,input:focus{border-color:var(--accent);background:var(--surface)}
 .rv .rstep .tm{display:inline-block;margin-left:6px;font-size:12px;color:var(--accent);background:var(--accent-soft);border-radius:var(--r-pill);padding:1px 8px}
 .rv .rstep .rhint{font-size:13px;color:var(--muted);margin-top:4px}
 .rv .box{background:var(--surface-2);border-radius:var(--r-md);padding:var(--s3);margin:var(--s2) 0;font-size:14px}
+
+/* большая кнопка фото: альтернатива ручному вводу продуктов */
+.photo-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:54px;margin-top:14px;
+  appearance:none;border:1.5px solid var(--accent);background:var(--accent-soft);color:var(--ink);
+  border-radius:var(--r-lg);font-size:17px;font-weight:700;cursor:pointer;line-height:1.25;padding:12px 16px;
+  transition:background .15s,transform .1s}
+.photo-btn:active{transform:scale(.99)}
+.photo-btn[disabled]{opacity:.7;cursor:default}
+.photo-hint{margin:8px 0 0;font-size:13px;color:var(--muted);text-align:center;line-height:1.4}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 /* Палитра и лицензированные шрифты по предоставленному визуальному ориентиру. */
@@ -215,6 +224,8 @@ html.dark body{background-color:var(--bg);background-image:radial-gradient(ellip
     <div class="card-h"><span class="step">1</span><h2>Какие продукты у вас есть?</h2></div>
     <textarea id="products" aria-label="Какие продукты у вас есть?" rows="3" maxlength="500" placeholder="Например: курица, рис, морковь, лук"></textarea>
     <p class="hint">Вода, соль и перец есть всегда — их писать не нужно.</p>
+    <button class="photo-btn" id="photo" type="button">📷 Сфотографировать продукты</button>
+    <p class="photo-hint">Нажмите — в чате расскажу, как снять продукты на камеру.</p>
   </section>
 
   <section class="card">
@@ -231,18 +242,6 @@ html.dark body{background-color:var(--bg);background-image:radial-gradient(ellip
     <div class="seg" id="kcal" role="group" aria-label="Калорийность"></div>
   </section>
 
-  <section class="card">
-    <div class="card-h"><h2>Уже получили рецепт?</h2></div>
-    <div id="recipe"></div>
-    <div class="row">
-      <button class="btn2" id="more" type="button">Ещё вариант</button>
-      <button class="btn2" id="wo" type="button">Без …</button>
-    </div>
-    <div class="wo" id="wo-row">
-      <input type="text" id="wo-item" maxlength="60" placeholder="Без какого продукта?">
-      <button class="btn2" id="wo-go" type="button">OK</button>
-    </div>
-  </section>
 
   <section class="card">
     <div class="card-h"><h2>Гульнара</h2></div>
@@ -378,6 +377,7 @@ var busy = false;
 function setBusy(on, label){
   busy = on; var g = $("go"); g.classList.toggle("busy", on); g.disabled = on;
   $("go-txt").textContent = label || "Подобрать рецепт";
+  var ph = $("photo"); if (ph) ph.disabled = on;
 }
 function openDeepLink(action, text){
   var s = buildStart(action, text);
@@ -413,6 +413,39 @@ function send(action, extra, text){
   setTimeout(function(){ setBusy(false); }, 2500);
 }
 
+
+function openPhotoLink(){
+  var url = "https://t.me/" + BOT + "?start=photo";
+  toast("Открываю чат — там расскажу, как прислать фото.");
+  if (tg && inTelegram){
+    var ok = safeCall(function(){ tg.openTelegramLink(url); return true; });
+    if (!ok){ location.href = url; }
+    setTimeout(function(){ safeCall(function(){ tg.close(); }); }, 600);
+  } else {
+    location.href = url;
+  }
+  return url;
+}
+function sendPhotoRequest(){
+  if (busy) return;
+  var payload = JSON.stringify({action:"photo"});
+  var mode = launchMode();
+  window.__lastSend = {mode: mode, action: "photo"};
+  haptic("ok");
+  setBusy(true, "Открываю чат…");
+  if (mode === "keyboard"){
+    var sent = safeCall(function(){ tg.sendData(payload); return true; });
+    window.__lastSend.via = sent ? "sendData" : "deeplink";
+    if (!sent){ window.__lastSend.url = openPhotoLink(); return; }
+    // Если окно не закрылось (Telegram проигнорировал sendData) — запасной путь через ссылку.
+    setTimeout(function(){ if (document.visibilityState === "visible"){ window.__lastSend.via = "sendData+deeplink"; window.__lastSend.url = openPhotoLink(); setTimeout(function(){ setBusy(false); }, 1500); } }, 2500);
+    return;
+  }
+  window.__lastSend.via = "deeplink";
+  window.__lastSend.url = openPhotoLink();
+  setTimeout(function(){ setBusy(false); }, 2500);
+}
+
 $("go").addEventListener("click", function(){
   var box = $("products"), p = box.value.trim();
   if (!p){
@@ -423,13 +456,7 @@ $("go").addEventListener("click", function(){
   }
   send("recipe", {products: p.slice(0, 500)}, p);
 });
-$("more").addEventListener("click", function(){ send("more", {}, ""); });
-$("wo").addEventListener("click", function(){ var r = $("wo-row"); r.classList.toggle("open"); if (r.classList.contains("open")) $("wo-item").focus(); });
-$("wo-go").addEventListener("click", function(){
-  var x = $("wo-item").value.trim();
-  if (!x){ haptic("error"); toast("Напишите, без какого продукта.", true); return; }
-  send("without", {item: x.slice(0, 60)}, x);
-});
+$("photo").addEventListener("click", function(){ sendPhotoRequest(); });
 [].forEach.call(document.querySelectorAll("[data-href]"), function(a){
   a.addEventListener("click", function(){
     var url = a.getAttribute("data-href");
@@ -512,9 +539,9 @@ function renderRecipe(d, box){
   }
 }
 window.renderRecipe = renderRecipe;
-if (API && tg && tg.initData){
+if (API && tg && tg.initData && $("recipe")){
   fetch(API.replace(/\/$/, "") + "/last", {headers: {"X-Telegram-Init-Data": tg.initData}}).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
-    if (!d || !(d.name || d.title)) return;
+    if (!d || !(d.name || d.title) || !$("recipe")) return;
     renderRecipe(d, $("recipe"));
   }).catch(function(){});
 }
