@@ -215,6 +215,18 @@ body{background-color:var(--bg);background-image:radial-gradient(ellipse at 0 20
   font:600 12px/1.2 Manrope,sans-serif;letter-spacing:.01em;padding:8px 11px;border-radius:999px;
   backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 6px 16px rgba(15,22,17,.22)}
 .my-recipes:active{transform:scale(.98)}
+/* «Купить масло»: стеклянная плашка, ведёт в WhatsApp Гульнары +7 928 565-60-90 (Grok Bot, 15.11.2026) */
+.oil-buy{position:relative;overflow:hidden;display:flex;align-items:center;gap:14px;width:100%;appearance:none;cursor:pointer;margin:0 0 12px;
+  padding:16px 18px;border-radius:20px;border:1px solid rgba(245,240,230,.26);color:#F5F0E6;text-align:left;font:inherit;
+  background:linear-gradient(135deg,rgba(32,42,35,.94) 0%,rgba(61,74,53,.9) 55%,rgba(120,96,42,.86) 100%);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 12px 28px rgba(32,42,35,.2),inset 0 1px 0 rgba(255,255,255,.14)}
+.oil-buy::after{content:"";position:absolute;inset:0 auto 0 -40%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.12),transparent);transform:skewX(-18deg);pointer-events:none}
+.oil-buy .oil-ic{flex:0 0 44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:22px;
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.oil-buy .oil-t{display:block;font-weight:800;font-size:17px;letter-spacing:-.01em;line-height:1.2}
+.oil-buy small{display:block;margin-top:3px;color:#e6dfcd;font-size:12.5px;font-weight:500;line-height:1.35}
+.oil-buy .arr{margin-left:auto;font-size:22px;color:#e3dbc6}
+.oil-buy:active{transform:scale(.985)}
 body.on-history{padding-bottom:calc(var(--safe-bottom) + 24px)}
 body.on-history .bar{display:none}
 .hist-empty{margin:18px 8px;padding:22px 18px;border:1px dashed var(--line);border-radius:18px;
@@ -427,6 +439,11 @@ body.on-result .bar{display:none}
 
 
 
+
+  <button class="oil-buy" type="button" id="oil-buy" data-href="https://wa.me/79285656090" aria-label="Купить масло у Гульнары в WhatsApp">
+    <span class="oil-ic" aria-hidden="true">🌿</span>
+    <span><span class="oil-t">Купить масло</span><small>Масла Занджабиль · WhatsApp Гульнары<br>+7 928 565-60-90</small></span>
+    <span class="arr" aria-hidden="true">›</span></button>
 
   <section class="card">
     <div class="card-h"><h2>Гульнара</h2></div>
