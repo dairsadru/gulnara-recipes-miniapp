@@ -345,9 +345,27 @@ body.on-result .bar{display:none}
 .dd-opt[aria-selected=true]::before,.dd-opt[aria-selected=true] + .dd-opt::before{display:none}
 .dd-opt .ok{width:18px;height:18px;flex:none;opacity:0;color:var(--accent)}
 .dd-opt[aria-selected=true] .ok{opacity:1}
+
+/* обязательная подписка на канал */
+.sub-wrap{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(20,24,20,.55)}
+.sub-wrap[hidden]{display:none}
+.sub-card{width:100%;max-width:420px;background:var(--surface);color:var(--ink);border-radius:var(--r-lg);padding:22px 20px 18px;box-shadow:var(--shadow);text-align:center}
+.sub-card h2{margin:0 0 8px;font-size:20px}
+.sub-card p{margin:0 0 6px;color:var(--muted);line-height:1.45}
+.sub-card .photo-btn{margin-top:12px}
+.sub-card #sub-open{background:var(--accent);color:var(--accent-ink,#fff);border-color:var(--accent)}
+.sub-card .sub-check{background:var(--surface-2);color:var(--ink)}
 </style>
 </head>
 <body>
+<div class="sub-wrap" id="sub-wrap" hidden role="dialog" aria-modal="true" aria-labelledby="sub-title">
+  <div class="sub-card">
+    <h2 id="sub-title">Подпишитесь на канал</h2>
+    <p id="sub-text">Чтобы пользоваться приложением, пожалуйста, подпишитесь на наш канал «Золото в каплях».</p>
+    <button class="photo-btn" id="sub-open" type="button">📢 Подписаться на канал</button>
+    <button class="photo-btn sub-check" id="sub-check" type="button">✅ Я подписался</button>
+  </div>
+</div>
 <div class="wrap">
 <main class="view" id="view-input">
   <header class="head">
@@ -898,7 +916,25 @@ function pingApi(cb){
       .then(function(r){ fin(r.status === 200); }, function(){ fin(false); });
   } catch (e) { fin(false); }
 }
+/* Обязательная подписка на канал: сервер отвечает 403 not_subscribed — показываем окно со ссылкой и проверкой. */
+var subUrl = "https://t.me/Naturalnie_Masla", subRetry = null, subBusy = false;
+function showSubscribe(d, retryFn){
+  stopLoader(); if (typeof setBusy === "function") setBusy(false);
+  if (d && typeof d.channel_url === "string" && /^https:\/\/t\.me\//.test(d.channel_url)) subUrl = d.channel_url;
+  var tx = $("sub-text"); if (tx && d && d.message) tx.textContent = String(d.message);
+  subRetry = retryFn || null;
+  $("sub-wrap").hidden = false; haptic("error");
+}
+function checkSubscription(force, onDone){
+  if (!canUseApi()){ if (onDone) onDone(true); return; }
+  getJson("/subscription" + (force ? "?force=1&t=" + Date.now() : ""), 15000).then(function(res){
+    if (res && res.status === 403 && res.d && res.d.error === "not_subscribed"){ showSubscribe(res.d, subRetry); if (onDone) onDone(false); return; }
+    $("sub-wrap").hidden = true;      // подписан или проверить нельзя — не мешаем
+    if (onDone) onDone(!!(res && res.ok));
+  });
+}
 function failAfterCheck(retryFn, res, lostText){
+  if (res && res.status === 403 && res.d && res.d.error === "not_subscribed"){ showSubscribe(res.d, retryFn); return; }
   if (!res || res.status !== 0){ showFail(retryFn, errorMessage(res)); return; }
   pingApi(function(alive){
     if (alive){ showFail(retryFn, lostText || "Запрос не дошёл до сервера: прервалась связь. Попробуйте ещё раз."); return; }
@@ -1069,6 +1105,24 @@ $("reopen").addEventListener("click", function(){ if (tg && inTelegram) safeCall
 document.addEventListener("visibilitychange", function(){ if (!document.hidden) checkApiAlive(); });
 if (tg && inTelegram) safeCall(function(){ tg.onEvent("activated", checkApiAlive); });
 setTimeout(checkApiAlive, 1500);
+$("sub-open").addEventListener("click", function(){
+  var u = subUrl; haptic("select");
+  var ok = safeCall(function(){ if (tg && inTelegram && tg.openTelegramLink){ tg.openTelegramLink(u); return true; } return false; });
+  if (!ok) window.open(u, "_blank");
+});
+$("sub-check").addEventListener("click", function(){
+  if (subBusy) return; subBusy = true;
+  var b = $("sub-check"); b.disabled = true; b.textContent = "Проверяю…";
+  checkSubscription(true, function(ok){
+    subBusy = false; b.disabled = false; b.textContent = "✅ Я подписался";
+    if (!$("sub-wrap").hidden){
+      var tx = $("sub-text"); if (tx) tx.textContent = "Пока не вижу вашей подписки. Подпишитесь по кнопке выше и нажмите «Я подписался» ещё раз.";
+      return;
+    }
+    if (ok){ haptic("ok"); toast("Спасибо за подписку!"); var r = subRetry; subRetry = null; if (r) r(); else if (view === "result") goBack(); }
+  });
+});
+setTimeout(function(){ checkSubscription(false); }, 800);
 $("more").addEventListener("click", function(){ if (busy) return; requestRecipe("more", {}, ""); });
 ["back","fail-back","ask-back","clarify-back","recipe-back"].forEach(function(id){ $(id).addEventListener("click", goBack); });
 $("hist-back").addEventListener("click", function(){ fromArchive = false; goBack(); });
