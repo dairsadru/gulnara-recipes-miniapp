@@ -554,12 +554,12 @@ var PEOPLES = ["аварская","даргинская","кумыкская","�
 var KCAL = [["any","Неважно","любая калорийность"],["lt300","Лёгкое","до 300 ккал"],["300_500","Обычное","300–500 ккал"],["gt500","Сытное","от 500 ккал"]];
 var state = {cuisine:"Любая", people:"", kcal:"any", healthy:false};
 try { state.healthy = localStorage.getItem("gul_healthy") === "1"; } catch (_) {}
-// initData уходит только на наш Cloudflare-туннель (https://*.trycloudflare.com), не на чужие домены.
+// initData уходит только на наш постоянный адрес или быстрый туннель Cloudflare, не на чужие домены.
 var API = "", apiParam = new URLSearchParams(location.search).get("api");
 function allowedApi(href){
   try {
     var u = new URL(href);
-    return u.protocol === "https:" && /^[a-z0-9-]+\.trycloudflare\.com$/.test(u.hostname);
+    return u.protocol === "https:" && (u.hostname === "receptapp.dairbek.ru" || /^[a-z0-9-]+\.trycloudflare\.com$/.test(u.hostname));
   } catch (_) { return false; }
 }
 if (apiParam && allowedApi(apiParam)) API = apiParam.replace(/\/$/, "");
