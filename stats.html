@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Статистика ботов</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#F6F1E7;--surface:#FFFDF8;--line:rgba(115,101,74,.16);--ink:#202A23;--muted:#6F6A5C;--olive:#8F9A7A;--forest:#202A23}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Manrope,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px 14px 40px}
+.head{border-radius:24px;padding:22px 20px;color:#F5F0E6;background:linear-gradient(135deg,#202A23,#3d4a35 60%,#5c6748);box-shadow:0 14px 30px rgba(39,51,33,.18)}
+.head small{display:block;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e3dbc6;margin-bottom:8px}
+.head h1{margin:0;font-size:26px;letter-spacing:-.02em}.head p{margin:6px 0 0;color:#e8e2d2;font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:13px 14px}
+.tile b{display:block;font-size:24px;letter-spacing:-.02em}.tile span{color:var(--muted);font-size:12.5px}
+.search{width:100%;padding:13px 15px;border-radius:16px;border:1px solid var(--line);background:var(--surface);font:inherit;color:var(--ink);margin:4px 0 10px;outline:none}
+.search:focus{border-color:var(--olive)}
+.sorts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.sortbtn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:13px/1.2 Manrope,-apple-system,"Segoe UI",sans-serif;font-weight:700;padding:10px 14px;border-radius:999px;min-height:40px}
+.sortbtn.on{background:var(--forest);color:#F5F0E6;border-color:var(--forest)}
+.ghead{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:16px 4px 8px}
+.row{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:0;margin-bottom:9px;overflow:hidden}
+.row>summary{list-style:none;cursor:pointer;padding:13px 15px;display:block}
+.row>summary::-webkit-details-marker{display:none}
+.line{font-weight:650;overflow-wrap:anywhere}
+.meta{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap}
+.chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;color:#fff}.wa{background:#25A35A}.tg{background:#2A9BD8}
+.sub{color:var(--muted);font-size:13px;margin-top:3px;overflow-wrap:anywhere}
+.dialog{border-top:1px solid var(--line);padding:12px 15px 16px;background:#fbf8f1}
+.turn{margin:0 0 12px}.turn:last-child{margin-bottom:0}
+.who{font-weight:700;font-size:13px}.tm{color:var(--muted);font-weight:600;font-size:12px;margin-left:6px}
+.body{margin-top:3px;overflow-wrap:anywhere;white-space:pre-wrap}
+.note{color:var(--muted);font-size:12px;line-height:1.5;margin-top:14px}
+.miss{color:#7a5a2a;background:#f4ead6;border-radius:12px;padding:8px 10px;font-size:13px;margin-bottom:10px}
+.more{margin-top:6px}.more>summary{cursor:pointer;color:var(--forest);font-weight:700;font-size:14px;padding:6px 0;list-style:none}
+.more>summary::-webkit-details-marker{display:none}
+.title{font-weight:700;margin-bottom:4px}
+.msg{margin:40px 10px;text-align:center;color:var(--muted)}
+</style></head><body>
+<div class="head"><small>Только для Даирбека</small><h1>Статистика ботов</h1><p id="gen">Загружаю…</p></div>
+<div id="app"><p class="msg" id="msg">Загружаю данные…</p></div>
+<script>
+(function(){
+var tg = window.Telegram && window.Telegram.WebApp; if (tg){ try{ tg.ready(); tg.expand(); }catch(e){} }
+var init = tg && tg.initData || "";
+var SORT_KEY = "gulnara-stats-sort";
+function el(t, c, txt){ var e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = String(txt); return e; }
+function say(t){ var a = document.getElementById("app"); a.innerHTML = ""; a.appendChild(el("p", "msg", t)); document.getElementById("gen").textContent = ""; }
+function lines(node, text){
+  String(text || "").split("\n").forEach(function(line, i){
+    if (i) node.appendChild(document.createElement("br"));
+    node.appendChild(document.createTextNode(line));
+  });
+}
+function allowedApi(href){
+  try {
+    var u = new URL(href);
+    return u.protocol === "https:" && (u.hostname === "receptapp.dairbek.ru" || /^[a-z0-9-]+\.trycloudflare\.com$/.test(u.hostname));
+  } catch (_) { return false; }
+}
+var apiParam = new URLSearchParams(location.search).get("api");
+var API = (apiParam && allowedApi(apiParam)) ? apiParam.replace(/\/$/, "") : "";
+if (!init){ say("Откройте эту страницу кнопкой из Telegram-бота (команда /stats)."); return; }
+if (!API){ say("Откройте эту страницу кнопкой из Telegram-бота (команда /stats)."); return; }
+fetch(API + "/stats/api", {method:"POST", headers:{"X-Telegram-Init-Data": init, "Content-Type":"application/json"}, body:"{}", cache:"no-store"})
+ .then(function(r){ if (r.status === 403 || r.status === 401) throw "deny"; if (!r.ok) throw "err"; return r.json(); })
+ .then(render).catch(function(e){ say(e === "deny" ? "Нет доступа." : "Не получилось загрузить. Попробуйте ещё раз чуть позже."); });
+function savedSort(){
+  var s = "";
+  try{ s = localStorage.getItem(SORT_KEY) || ""; }catch(e){}
+  return (s === "person" || s === "topic" || s === "date") ? s : "date";
+}
+function saveSort(s){ try{ localStorage.setItem(SORT_KEY, s); }catch(e){} }
+function topicName(t){
+  if (t === "oils") return "Масла";
+  if (t === "recipes") return "Рецепты";
+  if (t === "subscription") return "Подписка";
+  return "Приветствия и другое";
+}
+function dayKey(ts){
+  if (!ts) return "";
+  var d = new Date(ts * 1000);
+  return d.getFullYear() + "-" + (d.getMonth()+1) + "-" + d.getDate();
+}
+function dayLabel(ts){
+  if (!ts) return "Без даты";
+  var months = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+  var d = new Date(ts * 1000);
+  return d.getDate() + " " + months[d.getMonth()];
+}
+function render(d){
+  var t = d.totals, a = document.getElementById("app"); a.innerHTML = "";
+  document.getElementById("gen").textContent = "Обновлено " + d.generated + " (МСК)";
+  var tiles = el("div", "tiles");
+  [[t.wa_users, "человек в WhatsApp"], [t.tg_users, "человек в Telegram"],
+   [t.wa_msgs_today + t.tg_msgs_today, "сообщений сегодня"], [t.wa_msgs + t.tg_msgs, "сообщений всего"],
+   [t.recipes_today, "рецептов сегодня"], [t.recipes, "рецептов всего"],
+   [t.new_today, "новых сегодня"], [t.oils_people, "спрашивали о маслах"]].forEach(function(x){
+    var b = el("div", "tile"); b.appendChild(el("b", "", x[0])); b.appendChild(el("span", "", x[1])); tiles.appendChild(b); });
+  a.appendChild(tiles);
+  var s = el("input", "search"); s.type = "search"; s.placeholder = "Поиск: имя или слова из переписки"; a.appendChild(s);
+  var sorts = el("div", "sorts"); var mode = savedSort();
+  [["date","По дате"],["person","По людям"],["topic","По темам"]].forEach(function(x){
+    var b = el("button", "sortbtn" + (mode === x[0] ? " on" : ""), x[1]); b.type = "button"; b.setAttribute("data-sort", x[0]);
+    b.addEventListener("click", function(){ mode = x[0]; saveSort(mode); Array.prototype.forEach.call(sorts.children, function(c){ c.className = "sortbtn" + (c.getAttribute("data-sort") === mode ? " on" : ""); }); draw(); });
+    sorts.appendChild(b);
+  });
+  a.appendChild(sorts);
+  var list = el("div"); a.appendChild(list);
+  function matches(item, q){
+    if (!q) return true;
+    var hay = (item.line + " " + item.name + " " + item.channel + " " + (item.incomplete_note || "")).toLowerCase();
+    (item.messages || []).forEach(function(m){ hay += " " + (m.text || "") + " " + (m.title || ""); });
+    return hay.replace(/[\s()-]/g, "").indexOf(q) >= 0 || hay.indexOf(q) >= 0;
+  }
+  function renderItem(item){
+    var box = el("details", "row");
+    var sum = el("summary");
+    sum.appendChild(el("div", "line", item.line));
+    var meta = el("div", "meta");
+    meta.appendChild(el("span", "chip " + (item.channel === "WhatsApp" ? "wa" : "tg"), item.channel || ""));
+    sum.appendChild(meta);
+    box.appendChild(sum);
+    var body = el("div", "dialog");
+    if (item.incomplete && item.incomplete_note) body.appendChild(el("div", "miss", item.incomplete_note));
+    (item.messages || []).forEach(function(m){
+      var turn = el("div", "turn");
+      var head = el("div");
+      head.appendChild(el("span", "who", m.who || ""));
+      if (m.time) head.appendChild(el("span", "tm", m.time));
+      turn.appendChild(head);
+      if (m.kind === "recipe" && m.long){
+        if (m.title) turn.appendChild(el("div", "title", m.title));
+        var prev = el("div", "body"); lines(prev, m.preview || ""); turn.appendChild(prev);
+        var more = el("details", "more"); more.appendChild(el("summary", "", "ещё"));
+        var full = el("div", "body"); lines(full, m.text || ""); more.appendChild(full);
+        turn.appendChild(more);
+      } else {
+        var tx = el("div", "body"); lines(tx, m.text || ""); turn.appendChild(tx);
+      }
+      body.appendChild(turn);
+    });
+    if (!(item.messages || []).length && !item.incomplete_note){
+      body.appendChild(el("div", "miss", "Подробности переписки не сохранились."));
+    }
+    box.appendChild(body);
+    return box;
+  }
+  function grouped(items){
+    if (mode === "person"){
+      var by = {}; items.forEach(function(it){ var k = it.name || "Без имени"; (by[k] = by[k] || []).push(it); });
+      return Object.keys(by).sort(function(a,b){ return a.localeCompare(b, "ru"); }).map(function(k){ return {title:k, items:by[k]}; });
+    }
+    if (mode === "topic"){
+      var order = ["oils","recipes","subscription","greeting","other"];
+      var by = {}; items.forEach(function(it){ var k = it.topic || "other"; if (k === "greeting") k = "other"; (by[k] = by[k] || []).push(it); });
+      return order.filter(function(k){ return by[k] && by[k].length; }).map(function(k){ return {title:topicName(k), items:by[k]}; });
+    }
+    var by = {}; items.forEach(function(it){ var k = dayKey(it.when_ts) || "none"; (by[k] = by[k] || []).push(it); });
+    return Object.keys(by).sort(function(a,b){ return b.localeCompare(a); }).map(function(k){
+      var ts = (by[k][0] && by[k][0].when_ts) || 0;
+      return {title: dayLabel(ts), items: by[k]};
+    });
+  }
+  function draw(){
+    var q = s.value.trim().toLowerCase(); list.innerHTML = ""; var shown = [];
+    (d.dialogs || []).forEach(function(it){ if (matches(it, q)) shown.push(it); });
+    if (!shown.length){ list.appendChild(el("p", "msg", "Никого не нашлось.")); return; }
+    grouped(shown).forEach(function(g){
+      list.appendChild(el("div", "ghead", g.title));
+      g.items.forEach(function(it){ list.appendChild(renderItem(it)); });
+    });
+  }
+  s.addEventListener("input", draw); draw();
+  a.appendChild(el("p", "note", "Как считаем рецепты: по журналам ботов, одна запись о картинке блюда = один готовый рецепт. " +
+    "WhatsApp: " + t.recipes_wa + ", Telegram-чат: " + t.recipes_tg_chat + ", Mini App: " + t.recipes_miniapp + ". " +
+    "Рецепт в WhatsApp записан на человека, только если в эти 4 минуты писал он один; не удалось записать на человека: " + t.recipes_unattributed + ". " +
+    "В Telegram у человека: рецепты из «Мои рецепты» Mini App и, с 15.11, рецепты в чате. Сообщения в Telegram считаются с 15.11. " +
+    "Полный текст переписки пишется в журнал с 15.11 вечером; у более ранних разговоров видны только сохранившиеся обрывки, и это подписано честно."));
+}
+})();
+</script></body></html>
