@@ -7,7 +7,7 @@
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<!-- miniapp-build 20261121-1744 -->
+<!-- miniapp-build 20261121-1815 -->
 <title>Вкусно с Гульнарой</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -172,6 +172,7 @@ textarea:focus,input:focus{border-color:var(--accent);background:var(--surface)}
 #photo-preview-wrap .row{display:flex;gap:8px}
 #photo-preview-wrap .row button{flex:1}
 #api-fail,#photo-ask,#clarify-box{margin:0 0 var(--s3)}
+#api-fail-text .fail-stage{display:block;margin-top:8px;font-size:13px;color:var(--muted);font-weight:400}
 #clarify-text{white-space:pre-line;line-height:1.5}
 #clarify-buttons .photo-btn{margin-top:8px}
 #clarify-input{width:100%;margin-top:12px;min-height:48px;border:1px solid var(--line);border-radius:var(--r-md);padding:10px;font:inherit;box-sizing:border-box;background:var(--surface);color:var(--ink)}
@@ -545,7 +546,7 @@ body.on-result .bar{display:none}
 <script>
 (function(){
 "use strict";
-var BUILD = "20261121-1744";
+var BUILD = "20261121-1815";
 (function bustCache(){
   /* WKWebView: location.replace с новым v, без reload. Сохраняем hash (там tgWebAppData). */
   try {
@@ -555,6 +556,61 @@ var BUILD = "20261121-1744";
     location.replace(u.toString());
   } catch (e) {}
 })();
+function shortUa(){
+  var ua = (typeof navigator !== "undefined" && navigator.userAgent) ? navigator.userAgent : "";
+  var plat = /iPhone/i.test(ua) ? "iPhone" : (/iPad/i.test(ua) ? "iPad" : (/Android/i.test(ua) ? "Android" : "other"));
+  var m = ua.match(/Telegram[^\s;,)]{0,40}/);
+  var tgTag = m ? m[0] : "-";
+  return plat + "/" + tgTag;
+}
+function scrubClientText(s, n){
+  s = String(s == null ? "" : s);
+  s = s.replace(/(initData|init_data|token|hash|authorization|cookie|password|secret|query_id)\s*[:=]\s*[^\s,&"']+/ig, "$1=…");
+  s = s.replace(/\?[^\s"']+/g, "?…");
+  return s.slice(0, n || 300);
+}
+var lastClientLogAt = 0, clientLogBurst = 0;
+function reportClientError(stage, err, extra){
+  try {
+    var msg = "", stack = "";
+    if (err && typeof err === "object"){
+      msg = String(err.message || err.name || err);
+      stack = String(err.stack || "");
+    } else msg = String(err || "");
+    var payload = {
+      build: BUILD,
+      ua: shortUa(),
+      stage: String(stage || "").slice(0, 40),
+      message: scrubClientText(msg, 300),
+      stack: scrubClientText(stack, 300)
+    };
+    if (extra && extra.status != null) payload.status = extra.status;
+    if (!API) return;
+    var now = Date.now();
+    if (now - lastClientLogAt < 10000){
+      clientLogBurst += 1;
+      if (clientLogBurst > 5) return;
+    } else { clientLogBurst = 0; }
+    lastClientLogAt = now;
+    fetch(API + "/clientlog", {
+      method: "POST",
+      headers: {"Content-Type": "text/plain;charset=UTF-8"},
+      body: JSON.stringify(payload),
+      mode: "cors",
+      credentials: "omit",
+      cache: "no-store",
+      keepalive: false
+    }).then(function(){}, function(){});
+  } catch (e) {}
+}
+window.onerror = function(message, source, line, col, error){
+  reportClientError("onerror", error || message);
+};
+if (typeof window.addEventListener === "function"){
+  window.addEventListener("unhandledrejection", function(ev){
+    reportClientError("unhandledrejection", ev && ev.reason);
+  });
+}
 function initDataFromHash(){
   try {
     var h = location.hash || "";
@@ -840,9 +896,22 @@ function setBusy(on, label){
     var el = $(id); if (el) el.disabled = on;
   });
 }
-function showFail(retryFn, message){
+function showFail(retryFn, message, stage){
   stopLoader();
-  var ft = $("api-fail-text"); if (ft){ ft.innerHTML = ""; var b = document.createElement("b"); b.textContent = message || "Не получилось, попробуйте ещё раз"; ft.appendChild(b); }
+  var ft = $("api-fail-text");
+  if (ft){
+    ft.innerHTML = "";
+    var b = document.createElement("b");
+    b.textContent = message || "Не получилось, попробуйте ещё раз";
+    ft.appendChild(b);
+    if (stage){
+      var s = document.createElement("span");
+      s.className = "fail-stage";
+      s.setAttribute("data-stage", stage);
+      s.textContent = "Этап: " + stage;
+      ft.appendChild(s);
+    }
+  }
   lastRetry = retryFn || null;
   var r = $("retry"); if (r) r.hidden = !lastRetry;
   var ro = $("reopen"); if (ro) ro.hidden = true;
@@ -911,21 +980,48 @@ function showDishImage(src, seq){
 function loadDishImage(token, seq, tries){
   postJson("/image", {token: token}, 25000).then(function(res){
     if (seq !== reqSeq) return;
-    if (res.ok && res.d && res.d.pending && tries < 8) { loadDishImage(token, seq, tries + 1); return; }
-    if (res.ok && res.d && typeof res.d.image === "string" && /^data:image\/(jpeg|png|webp);base64,/.test(res.d.image)) showDishImage(res.d.image, seq);
-    else $("dish").hidden = true;
+    try {
+      if (res.ok && res.d && res.d.pending && tries < 8) { loadDishImage(token, seq, tries + 1); return; }
+      if (res.ok && res.d && typeof res.d.image === "string" && /^data:image\/(jpeg|png|webp);base64,/.test(res.d.image)) showDishImage(res.d.image, seq);
+      else $("dish").hidden = true;
+    } catch (e) {
+      reportClientError("image", e);
+      try { $("dish").hidden = true; } catch (e2) {}
+    }
+  }, function(err){
+    if (seq !== reqSeq) return;
+    reportClientError("image-fetch", err);
+    try { $("dish").hidden = true; } catch (e) {}
   });
 }
 function showRecipe(d, seq){
   stopLoader();
   var token = typeof d.image_token === "string" ? d.image_token : "";
   var direct = typeof d.image === "string" && /^(https:|data:image\/)/.test(d.image) ? d.image : "";
-  resetDish(!!(token || direct));
+  try { resetDish(!!(token || direct)); } catch (e) { reportClientError("render-image", e); }
   showPane("recipe-card");
-  renderRecipe(d, $("recipe"));
-  if (direct) showDishImage(direct, seq);
-  else if (token) loadDishImage(token, seq, 0);
-  window.scrollTo(0, 0);
+  try { renderRecipe(d, $("recipe")); }
+  catch (e) {
+    reportClientError("render", e);
+    var box = $("recipe");
+    if (box){
+      box.innerHTML = "";
+      var h = document.createElement("h3");
+      h.textContent = String((d && (d.name || d.title)) || "Рецепт");
+      box.appendChild(h);
+      var p = document.createElement("p");
+      p.textContent = "Рецепт готов, но часть оформления не открылась. Полный текст — в чате с ботом.";
+      box.appendChild(p);
+    }
+  }
+  try {
+    if (direct) showDishImage(direct, seq);
+    else if (token) loadDishImage(token, seq, 0);
+  } catch (e) {
+    reportClientError("image", e);
+    try { $("dish").hidden = true; } catch (e2) {}
+  }
+  try { window.scrollTo(0, 0); } catch (e) {}
   haptic("ok");
 }
 
@@ -947,24 +1043,65 @@ function canUseApi(){
 /* Простые CORS-запросы без preflight: Content-Type text/plain, без своих заголовков.
    initData уходит в теле POST или в query у GET. Свой заголовок с initData больше не шлём. */
 function parseJsonRes(r){
-  return r.json().then(function(d){ return {ok:r.ok, status:r.status, d:d}; }, function(){ return {ok:false, status:r.status, d:null}; });
+  return Promise.resolve().then(function(){ return r.text(); }).then(function(txt){
+    var d = null;
+    try { d = txt ? JSON.parse(txt) : null; }
+    catch (e) {
+      reportClientError("parse", e, {status: r.status});
+      return {ok:false, status:r.status, d:null, stage:"разбор ответа"};
+    }
+    return {ok:!!r.ok, status:r.status, d:d};
+  }, function(e){
+    reportClientError("read-body", e, {status: r.status});
+    return {ok:false, status:r.status || 0, d:null, stage:"получение ответа"};
+  });
 }
 function postOnce(path, body, timeoutMs){
   var late = false, settled = false;
   var timer = setTimeout(function(){ late = true; }, timeoutMs);
   var payload = Object.assign({}, body || {}, {initData: initDataValue()});
+  var tag = String(path || "").replace(/^\//, "") || "post";
   return fetch(API + path, {method:"POST", headers:{"Content-Type":"text/plain;charset=UTF-8"}, body: JSON.stringify(payload), mode:"cors", credentials:"omit", cache:"no-store", keepalive:false})
-    .then(function(r){ clearTimeout(timer); if (settled || late) return {ok:false, status: late ? -1 : r.status, d:null}; settled = true; return parseJsonRes(r); },
-          function(){ clearTimeout(timer); if (settled) return {ok:false, status: late ? -1 : 0, d:null}; settled = true; return {ok:false, status: late ? -1 : 0, d:null}; });
+    .then(function(r){
+      clearTimeout(timer);
+      if (settled) return {ok:false, status: r.status, d:null, stage:"получение ответа"};
+      settled = true;
+      return parseJsonRes(r).then(function(res){
+        if (late && !(res && (isRecipeData(res.d) || (res.d && (res.d.clarify || res.d.message || res.d.ok || res.d.image || res.d.pending))))){
+          return {ok:false, status: -1, d: res && res.d, stage:"ожидание ответа"};
+        }
+        return res;
+      });
+    }, function(e){
+      clearTimeout(timer);
+      reportClientError("fetch-post-" + tag, e);
+      if (settled) return {ok:false, status: late ? -1 : 0, d:null, stage:"получение ответа"};
+      settled = true;
+      return {ok:false, status: late ? -1 : 0, d:null, stage:"получение ответа"};
+    });
 }
 function getOnce(path, timeoutMs){
   var late = false, settled = false;
   var timer = setTimeout(function(){ late = true; }, timeoutMs || 20000);
   var sep = path.indexOf("?") >= 0 ? "&" : "?";
   var url = API + path + sep + "initData=" + encodeURIComponent(initDataValue());
+  var tag = String(path || "").split("?")[0].replace(/^\//, "") || "get";
   return fetch(url, {method:"GET", mode:"cors", credentials:"omit", cache:"no-store", keepalive:false})
-    .then(function(r){ clearTimeout(timer); if (settled || late) return {ok:false, status: late ? -1 : r.status, d:null}; settled = true; return parseJsonRes(r); },
-          function(){ clearTimeout(timer); if (settled) return {ok:false, status: late ? -1 : 0, d:null}; settled = true; return {ok:false, status: late ? -1 : 0, d:null}; });
+    .then(function(r){
+      clearTimeout(timer);
+      if (settled) return {ok:false, status: r.status, d:null, stage:"получение ответа"};
+      settled = true;
+      return parseJsonRes(r).then(function(res){
+        if (late && !(res && res.d)) return {ok:false, status: -1, d:null, stage:"ожидание ответа"};
+        return res;
+      });
+    }, function(e){
+      clearTimeout(timer);
+      reportClientError("fetch-get-" + tag, e);
+      if (settled) return {ok:false, status: late ? -1 : 0, d:null, stage:"получение ответа"};
+      settled = true;
+      return {ok:false, status: late ? -1 : 0, d:null, stage:"получение ответа"};
+    });
 }
 function retryOnce(res, replay){
   if (res && (res.status === 0 || res.status === -1)) return replay();
@@ -1009,12 +1146,18 @@ function checkSubscription(force, onDone){
     if (onDone) onDone(!!(res && res.ok));
   });
 }
-function failAfterCheck(retryFn, res, lostText){
+function isRecipeData(d){ return !!(d && (d.name || d.title)); }
+function failAfterCheck(retryFn, res, lostText, stage){
+  stage = stage || (res && res.stage) || "";
   if (res && res.status === 403 && res.d && res.d.error === "not_subscribed"){ showSubscribe(res.d, retryFn); return; }
-  if (!res || res.status !== 0){ showFail(retryFn, errorMessage(res)); return; }
+  if (res && isRecipeData(res.d)){
+    try { showRecipe(res.d, reqSeq); return; }
+    catch (e){ reportClientError("render", e); }
+  }
+  if (!res || res.status !== 0){ showFail(retryFn, errorMessage(res), stage || "ответ сервера"); return; }
   pingApi(function(alive){
-    if (alive){ showFail(retryFn, lostText || "Запрос не дошёл до сервера: прервалась связь. Попробуйте ещё раз."); return; }
-    showFail(retryFn, STALE_TEXT);
+    if (alive){ showFail(retryFn, lostText || "Запрос не дошёл до сервера: прервалась связь. Попробуйте ещё раз.", stage || "получение ответа"); return; }
+    showFail(retryFn, STALE_TEXT, stage || "получение ответа");
     var b = $("reopen"); if (b && tg && inTelegram) b.hidden = false;
   });
 }
@@ -1049,18 +1192,33 @@ function requestRecipe(action, extra, text){
   postJson("/recipe", body, 90000).then(function(res){
     if (seq !== reqSeq) return;
     setBusy(false);
-    if (res && res.d && res.d.nonce) clarificationNonce = String(res.d.nonce);
-    if (res.ok && res.d && res.d.clarify && res.d.message){
-      showClarification(res.d);
-    } else if (res.ok && res.d && (res.d.name || res.d.title)){
-      clarificationNonce=""; showRecipe(res.d, seq);
-    } else if (res.ok && res.d && res.d.message){
-      clarificationNonce=""; showClarification({message: res.d.message});   // ответ без рецепта (например, «это не еда»)
-    } else if (res.d && res.d.error === "stale_clarification"){
-      clarificationNonce=""; showFail(null, res.d.message);
-    } else {
-      failAfterCheck(retry, res);
+    try {
+      if (res && res.d && res.d.nonce) clarificationNonce = String(res.d.nonce);
+      if (isRecipeData(res && res.d) && !(res.d.clarify && res.d.message)){
+        clarificationNonce="";
+        showRecipe(res.d, seq);
+      } else if (res && res.ok && res.d && res.d.clarify && res.d.message){
+        showClarification(res.d);
+      } else if (res && res.ok && res.d && res.d.message){
+        clarificationNonce=""; showClarification({message: res.d.message});   // ответ без рецепта (например, «это не еда»)
+      } else if (res && res.d && res.d.error === "stale_clarification"){
+        clarificationNonce=""; showFail(null, res.d.message, "уточнение");
+      } else {
+        reportClientError("recipe-empty", {message: "status " + (res && res.status) + " ok=" + !!(res && res.ok)}, {status: res && res.status});
+        failAfterCheck(retry, res, null, (res && res.stage) || "получение ответа");
+      }
+    } catch (e) {
+      reportClientError("recipe-handle", e);
+      if (isRecipeData(res && res.d)){
+        try { showRecipe(res.d, seq); return; } catch (e2) { reportClientError("render", e2); }
+      }
+      failAfterCheck(retry, res, null, "показ рецепта");
     }
+  }, function(err){
+    if (seq !== reqSeq) return;
+    setBusy(false);
+    reportClientError("recipe-fetch", err);
+    failAfterCheck(retry, {ok:false, status:0, d:null, stage:"получение ответа"}, null, "получение ответа");
   });
 }
 
@@ -1130,10 +1288,23 @@ function sendPhoto(dataUrl){
   postJson("/photo", body, 180000).then(function(res){
     if (seq !== reqSeq) return;
     setBusy(false);
-    if (res.ok && res.d && (res.d.name || res.d.title)){ showRecipe(res.d, seq); return; }
-    if (!res.ok){ failAfterCheck(retry, res, "Фото не дошло до сервера: прервалась связь. Попробуйте ещё раз."); return; }
-    if (res.d && res.d.message){ showPhotoAsk(res.d.message); return; }
-    showFail(retry, "");
+    try {
+      if (isRecipeData(res && res.d)){ showRecipe(res.d, seq); return; }
+      if (!res.ok){ failAfterCheck(retry, res, "Фото не дошло до сервера: прервалась связь. Попробуйте ещё раз.", (res && res.stage) || "получение ответа"); return; }
+      if (res.d && res.d.message){ showPhotoAsk(res.d.message); return; }
+      showFail(retry, "", "фото");
+    } catch (e) {
+      reportClientError("photo-handle", e);
+      if (isRecipeData(res && res.d)){
+        try { showRecipe(res.d, seq); return; } catch (e2) { reportClientError("render", e2); }
+      }
+      failAfterCheck(retry, res, "Фото не дошло до сервера: прервалась связь. Попробуйте ещё раз.", "показ рецепта");
+    }
+  }, function(err){
+    if (seq !== reqSeq) return;
+    setBusy(false);
+    reportClientError("photo-fetch", err);
+    failAfterCheck(retry, {ok:false, status:0, d:null, stage:"получение ответа"}, "Фото не дошло до сервера: прервалась связь. Попробуйте ещё раз.", "получение ответа");
   });
 }
 
