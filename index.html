@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="referrer" content="no-referrer">
-<!-- miniapp-build 20261121-1725 -->
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<!-- miniapp-build 20261121-1744 -->
 <title>Вкусно с Гульнарой</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -399,8 +401,9 @@ body.on-result .bar{display:none}
   </header>
 
   <section class="card" id="prod-card">
-    <div class="card-h"><span class="step">1</span><h2>Какие продукты у вас есть?</h2></div>
-    <textarea id="products" aria-label="Какие продукты у вас есть?" rows="3" maxlength="500" placeholder="Например: курица, рис, морковь, лук"></textarea>
+    <div class="card-h"><span class="step">1</span><h2>Что приготовим сегодня?</h2></div>
+    <p class="hint">Напишите, какие продукты есть дома, или назовите блюдо, которое хотите</p>
+    <textarea id="products" aria-label="Что приготовим сегодня?" rows="3" maxlength="500" placeholder="Например: курица, рис, лук — или плов"></textarea>
     <p class="hint">Вода, соль и перец есть всегда — их писать не нужно.</p>
     <button class="photo-btn" id="photo" type="button">📷 Фото продуктов</button>
     <input id="photo-input" type="file" accept="image/*" aria-label="Фото продуктов: снять или выбрать из галереи">
@@ -462,7 +465,7 @@ body.on-result .bar{display:none}
 
 <main class="view" id="view-result" hidden aria-live="polite">
   <div class="topnav">
-    <button class="back" id="back" type="button" aria-label="Назад к продуктам"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Продукты</button>
+    <button class="back" id="back" type="button" aria-label="Назад к запросу"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Продукты</button>
     <div class="req-sum" id="req-sum"></div>
   </div>
 
@@ -489,7 +492,7 @@ body.on-result .bar{display:none}
     <div class="row">
       <button class="photo-btn" id="retry" type="button">Попробовать ещё раз</button>
       <button class="photo-btn" id="reopen" type="button" hidden>Закрыть приложение</button>
-      <button class="btn2" id="fail-back" type="button">Изменить продукты</button>
+      <button class="btn2" id="fail-back" type="button">Изменить запрос</button>
     </div>
   </section>
 
@@ -498,7 +501,7 @@ body.on-result .bar{display:none}
     <p id="photo-ask-text"></p>
     <div class="row">
       <button class="photo-btn" id="photo-ask-retake" type="button">Другое фото</button>
-      <button class="btn2" id="ask-back" type="button">Написать продукты</button>
+      <button class="btn2" id="ask-back" type="button">Написать запрос</button>
     </div>
   </section>
 
@@ -509,7 +512,7 @@ body.on-result .bar{display:none}
     <label id="clarify-label" class="hint" for="clarify-input">Или напишите ответ</label>
     <input id="clarify-input" type="text" maxlength="200" autocomplete="off" placeholder="Ваш ответ">
     <button class="photo-btn" id="clarify-send" type="button">Ответить</button>
-    <button class="btn2" id="clarify-back" type="button" style="width:100%;margin-top:8px">Изменить продукты</button>
+    <button class="btn2" id="clarify-back" type="button" style="width:100%;margin-top:8px">Изменить запрос</button>
   </section>
 
   <section class="card" id="recipe-card" hidden>
@@ -520,14 +523,14 @@ body.on-result .bar{display:none}
     <div id="recipe"></div>
     <div class="r-actions">
       <button class="photo-btn" id="more" type="button">Получить другой рецепт</button>
-      <button class="btn2" id="recipe-back" type="button">Изменить продукты</button>
+      <button class="btn2" id="recipe-back" type="button">Изменить запрос</button>
     </div>
   </section>
 </main>
 
 <main class="view" id="view-history" hidden>
   <div class="topnav">
-    <button class="back" id="hist-back" type="button" aria-label="Назад к продуктам"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Продукты</button>
+    <button class="back" id="hist-back" type="button" aria-label="Назад к запросу"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Продукты</button>
     <div class="req-sum">Мои рецепты</div>
   </div>
   <p id="hist-empty" class="hist-empty" hidden>Пока здесь пусто. Подберите рецепт — он появится в этом списке.</p>
@@ -542,8 +545,38 @@ body.on-result .bar{display:none}
 <script>
 (function(){
 "use strict";
+var BUILD = "20261121-1744";
+(function bustCache(){
+  /* WKWebView: location.replace с новым v, без reload. Сохраняем hash (там tgWebAppData). */
+  try {
+    var u = new URL(location.href);
+    if (u.searchParams.get("v") === BUILD) return;
+    u.searchParams.set("v", BUILD);
+    location.replace(u.toString());
+  } catch (e) {}
+})();
+function initDataFromHash(){
+  try {
+    var h = location.hash || "";
+    if (h.charAt(0) === "#") h = h.slice(1);
+    var q = h.indexOf("tgWebAppData=");
+    if (q < 0) return "";
+    var raw = h.slice(q + 13);
+    var amp = raw.indexOf("&tgWebApp");
+    if (amp >= 0) raw = raw.slice(0, amp);
+    return raw ? decodeURIComponent(raw) : "";
+  } catch (e) { return ""; }
+}
+function refreshTelegram(){
+  tg = (window.Telegram && window.Telegram.WebApp) || null;
+  if (tg && !tg.initData && initDataFromHash()) {
+    try { tg.initData = initDataFromHash(); } catch (e) {}
+  }
+  inTelegram = !!(tg && ((tg.platform && tg.platform !== "unknown") || (tg.initData || initDataFromHash())));
+  return tg;
+}
 var tg = (window.Telegram && window.Telegram.WebApp) || null;
-var inTelegram = !!(tg && tg.platform && tg.platform !== "unknown");
+var inTelegram = !!(tg && ((tg.platform && tg.platform !== "unknown") || tg.initData || initDataFromHash()));
 
 // Порядок кухонь тот же, что у бота.
 var CUISINES = ["Любая","Кавказская","Дагестанская","Итальянская","Турецкая","Японская","Грузинская","Узбекская",
@@ -571,9 +604,10 @@ var $ = function(id){ return document.getElementById(id); };
 /* ---------- Telegram: тема и безопасные зоны ---------- */
 function applyTheme(){ document.documentElement.className = (tg && inTelegram && tg.colorScheme === "dark") ? "dark" : "light"; }
 function safeCall(fn){ try { return fn(); } catch(e){ console.warn("[miniapp]", e && e.message); } }
-if (tg && inTelegram){
+refreshTelegram();
+if (tg){
   safeCall(function(){ tg.ready(); });
-  safeCall(function(){ tg.expand(); });
+  safeCall(function(){ if (inTelegram) tg.expand(); });
   // Telegram 7.7+: не закрывать/не тянуть окно жестом при прокрутке
   safeCall(function(){ if (tg.isVersionAtLeast && tg.isVersionAtLeast("7.7") && tg.disableVerticalSwipes) tg.disableVerticalSwipes(); });
   safeCall(function(){ if (tg.isVersionAtLeast && tg.isVersionAtLeast("6.1")){ tg.setHeaderColor && tg.setHeaderColor(getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || "#FBF6EE"); } });
@@ -692,13 +726,13 @@ function setArchiveMode(on){
   if (more) more.hidden = !!on;
   if (back){
     var label = on ? "Мои рецепты" : "Продукты";
-    back.setAttribute("aria-label", on ? "Назад к моим рецептам" : "Назад к продуктам");
+    back.setAttribute("aria-label", on ? "Назад к моим рецептам" : "Назад к запросу");
     var svg = back.querySelector("svg");
     back.textContent = "";
     if (svg) back.appendChild(svg);
     back.appendChild(document.createTextNode(label));
   }
-  if (rback) rback.textContent = on ? "К моим рецептам" : "Изменить продукты";
+  if (rback) rback.textContent = on ? "К моим рецептам" : "Изменить запрос";
 }
 function leafIcon(){
   return '<svg class="ph" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c8-1 14-8 14-14-6 0-13 6-14 14z" fill="none" stroke="#8F9A7A" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 15c2-3 5-6 9-8" fill="none" stroke="#8F9A7A" stroke-width="1.4" stroke-linecap="round"/></svg>';
@@ -858,7 +892,7 @@ function showClarification(data){
   var input=$("clarify-input"); if (input){ input.value=""; input.hidden=!clarificationNonce; }
   var label=$("clarify-label"); if (label) label.hidden=!clarificationNonce;
   var send=$("clarify-send"); if (send) send.hidden=!clarificationNonce;
-  if (!clarificationNonce && txt) txt.textContent += "\nНажмите «Изменить продукты», допишите их и подберите рецепт снова.";
+  if (!clarificationNonce && txt) txt.textContent += "\nНажмите «Изменить запрос», допишите его и подберите рецепт снова.";
   showPane("clarify-box");
 }
 
@@ -896,10 +930,19 @@ function showRecipe(d, seq){
 }
 
 function initDataValue(){
-  return (tg && tg.initData) || "";
+  refreshTelegram();
+  return (tg && tg.initData) || initDataFromHash() || "";
+}
+function whenInitReady(cb, waitMs){
+  if (initDataValue() || !tg){ cb(); return; }
+  var n = 0, max = Math.max(1, Math.floor((waitMs || 2000) / 100));
+  var id = setInterval(function(){
+    n++;
+    if (initDataValue() || n >= max){ clearInterval(id); cb(); }
+  }, 100);
 }
 function canUseApi(){
-  return !!(API && tg && inTelegram && tg.initData);
+  return !!(API && initDataValue());
 }
 /* Простые CORS-запросы без preflight: Content-Type text/plain, без своих заголовков.
    initData уходит в теле POST или в query у GET. Свой заголовок с initData больше не шлём. */
@@ -907,23 +950,21 @@ function parseJsonRes(r){
   return r.json().then(function(d){ return {ok:r.ok, status:r.status, d:d}; }, function(){ return {ok:false, status:r.status, d:null}; });
 }
 function postOnce(path, body, timeoutMs){
-  var ctrl = window.AbortController ? new AbortController() : null;
-  var late = false;
-  var timer = setTimeout(function(){ late = true; if (ctrl) ctrl.abort(); }, timeoutMs);
+  var late = false, settled = false;
+  var timer = setTimeout(function(){ late = true; }, timeoutMs);
   var payload = Object.assign({}, body || {}, {initData: initDataValue()});
-  return fetch(API + path, {method:"POST", headers:{"Content-Type":"text/plain;charset=UTF-8"}, body: JSON.stringify(payload), signal: ctrl && ctrl.signal})
-    .then(function(r){ clearTimeout(timer); return parseJsonRes(r); },
-          function(){ clearTimeout(timer); return {ok:false, status: late ? -1 : 0, d:null}; });
+  return fetch(API + path, {method:"POST", headers:{"Content-Type":"text/plain;charset=UTF-8"}, body: JSON.stringify(payload), mode:"cors", credentials:"omit", cache:"no-store", keepalive:false})
+    .then(function(r){ clearTimeout(timer); if (settled || late) return {ok:false, status: late ? -1 : r.status, d:null}; settled = true; return parseJsonRes(r); },
+          function(){ clearTimeout(timer); if (settled) return {ok:false, status: late ? -1 : 0, d:null}; settled = true; return {ok:false, status: late ? -1 : 0, d:null}; });
 }
 function getOnce(path, timeoutMs){
-  var ctrl = window.AbortController ? new AbortController() : null;
-  var late = false;
-  var timer = setTimeout(function(){ late = true; if (ctrl) ctrl.abort(); }, timeoutMs || 20000);
+  var late = false, settled = false;
+  var timer = setTimeout(function(){ late = true; }, timeoutMs || 20000);
   var sep = path.indexOf("?") >= 0 ? "&" : "?";
   var url = API + path + sep + "initData=" + encodeURIComponent(initDataValue());
-  return fetch(url, {method:"GET", cache:"no-store", signal: ctrl && ctrl.signal})
-    .then(function(r){ clearTimeout(timer); return parseJsonRes(r); },
-          function(){ clearTimeout(timer); return {ok:false, status: late ? -1 : 0, d:null}; });
+  return fetch(url, {method:"GET", mode:"cors", credentials:"omit", cache:"no-store", keepalive:false})
+    .then(function(r){ clearTimeout(timer); if (settled || late) return {ok:false, status: late ? -1 : r.status, d:null}; settled = true; return parseJsonRes(r); },
+          function(){ clearTimeout(timer); if (settled) return {ok:false, status: late ? -1 : 0, d:null}; settled = true; return {ok:false, status: late ? -1 : 0, d:null}; });
 }
 function retryOnce(res, replay){
   if (res && (res.status === 0 || res.status === -1)) return replay();
@@ -940,11 +981,11 @@ function getJson(path, timeoutMs){
 var STALE_TEXT = "Бот обновился, и адрес сервера поменялся. Нажмите «Закрыть приложение» и откройте его снова кнопкой «Рецепты» в чате с ботом.";
 function pingOnce(cb){
   if (!API){ cb(false); return; }
-  var ctrl = window.AbortController ? new AbortController() : null, done = false;
+  var done = false;
   var fin = function(v){ if (done) return; done = true; clearTimeout(t); cb(v); };
-  var t = setTimeout(function(){ if (ctrl) ctrl.abort(); fin(false); }, 10000);
+  var t = setTimeout(function(){ fin(false); }, 10000);
   try {
-    fetch(API + "/ping?t=" + Date.now(), {method:"GET", cache:"no-store", signal: ctrl && ctrl.signal})
+    fetch(API + "/ping?t=" + Date.now(), {method:"GET", mode:"cors", credentials:"omit", cache:"no-store", keepalive:false})
       .then(function(r){ fin(r.status === 200); }, function(){ fin(false); });
   } catch (e) { fin(false); }
 }
@@ -1008,6 +1049,7 @@ function requestRecipe(action, extra, text){
   postJson("/recipe", body, 90000).then(function(res){
     if (seq !== reqSeq) return;
     setBusy(false);
+    if (res && res.d && res.d.nonce) clarificationNonce = String(res.d.nonce);
     if (res.ok && res.d && res.d.clarify && res.d.message){
       showClarification(res.d);
     } else if (res.ok && res.d && (res.d.name || res.d.title)){
@@ -1116,7 +1158,7 @@ function onPhotoChosen(file){
 $("go").addEventListener("click", function(){
   var box = $("products"), p = box.value.trim();
   if (!p){
-    haptic("error"); toast("Напишите, какие продукты у вас есть.", true);
+    haptic("error"); toast("Напишите, какие продукты есть дома, или назовите блюдо.", true);
     $("prod-card").classList.add("field-err"); box.focus();
     setTimeout(function(){ $("prod-card").classList.remove("field-err"); }, 1800);
     return;
@@ -1138,8 +1180,8 @@ $("photo-ask-retake").addEventListener("click", function(){ if (!busy) openCamer
 $("retry").addEventListener("click", function(){ if (!busy && lastRetry) lastRetry(); });
 $("reopen").addEventListener("click", function(){ if (tg && inTelegram) safeCall(function(){ tg.close(); }); });
 document.addEventListener("visibilitychange", function(){ if (!document.hidden) checkApiAlive(); });
-if (tg && inTelegram) safeCall(function(){ tg.onEvent("activated", checkApiAlive); });
-setTimeout(checkApiAlive, 1500);
+if (tg) safeCall(function(){ if (tg.onEvent) tg.onEvent("activated", checkApiAlive); });
+whenInitReady(function(){ setTimeout(checkApiAlive, 400); }, 2000);
 $("sub-open").addEventListener("click", function(){
   var u = subUrl; haptic("select");
   var ok = safeCall(function(){ if (tg && inTelegram && tg.openTelegramLink){ tg.openTelegramLink(u); return true; } return false; });
@@ -1157,7 +1199,7 @@ $("sub-check").addEventListener("click", function(){
     if (ok){ haptic("ok"); toast("Спасибо за подписку!"); var r = subRetry; subRetry = null; if (r) r(); else if (view === "result") goBack(); }
   });
 });
-setTimeout(function(){ checkSubscription(false); }, 800);
+whenInitReady(function(){ checkSubscription(false); }, 2000);
 $("more").addEventListener("click", function(){ if (busy) return; requestRecipe("more", {}, ""); });
 ["back","fail-back","ask-back","clarify-back","recipe-back"].forEach(function(id){ $(id).addEventListener("click", goBack); });
 $("hist-back").addEventListener("click", function(){ fromArchive = false; goBack(); });
