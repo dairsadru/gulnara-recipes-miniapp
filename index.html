@@ -7,7 +7,7 @@
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<!-- miniapp-build 20261121-1815 -->
+<!-- miniapp-build 20261121-2029 -->
 <title>Вкусно с Гульнарой</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -645,16 +645,21 @@ var PEOPLES = ["аварская","даргинская","кумыкская","�
 var KCAL = [["any","Неважно","любая калорийность"],["lt300","Лёгкое","до 300 ккал"],["300_500","Обычное","300–500 ккал"],["gt500","Сытное","от 500 ккал"]];
 var state = {cuisine:"Любая", people:"", kcal:"any", healthy:false};
 try { state.healthy = localStorage.getItem("gul_healthy") === "1"; } catch (_) {}
-// initData уходит только на наш постоянный адрес или быстрый туннель Cloudflare, не на чужие домены.
+// initData уходит только на наши адреса API или быстрый туннель Cloudflare, не на чужие домены.
 var API = "", apiParam = new URLSearchParams(location.search).get("api");
+var DIRECT_API = "https://api.dairbek.ru";
+var CF_API = "https://receptapp.dairbek.ru";
 function allowedApi(href){
   try {
     var u = new URL(href);
-    return u.protocol === "https:" && (u.hostname === "receptapp.dairbek.ru" || /^[a-z0-9-]+\.trycloudflare\.com$/.test(u.hostname));
+    return u.protocol === "https:" && (u.hostname === "api.dairbek.ru" || u.hostname === "receptapp.dairbek.ru" || /^[a-z0-9-]+\.trycloudflare\.com$/.test(u.hostname));
   } catch (_) { return false; }
 }
 if (apiParam && allowedApi(apiParam)) API = apiParam.replace(/\/$/, "");
-if (!API && location.protocol === "https:" && location.hostname === "receptapp.dairbek.ru") API = location.origin;
+if (!API && location.protocol === "https:" && (location.hostname === "api.dairbek.ru" || location.hostname === "receptapp.dairbek.ru")) API = location.origin;
+var API_FALLBACK = "";
+if (API === DIRECT_API) API_FALLBACK = CF_API;
+else if (API === CF_API) API_FALLBACK = DIRECT_API;
 var $ = function(id){ return document.getElementById(id); };
 
 /* ---------- Telegram: тема и безопасные зоны ---------- */
@@ -1063,15 +1068,16 @@ function hardStop(ms){
   try { if (typeof AbortController === "function"){ c = new AbortController(); t = setTimeout(function(){ try { c.abort(); } catch (e) {} }, ms); } } catch (e) { c = null; }
   return {signal: c ? c.signal : undefined, clear: function(){ if (t) clearTimeout(t); }};
 }
-function postOnce(path, body, timeoutMs){
+function postOnce(path, body, timeoutMs, base){
   var late = false, settled = false;
   var timer = setTimeout(function(){ late = true; }, timeoutMs);
   var hs = hardStop(timeoutMs + 15000);
   var payload = Object.assign({}, body || {}, {initData: initDataValue()});
   var tag = String(path || "").replace(/^\//, "") || "post";
+  var root = base || API;
   var opts = {method:"POST", headers:{"Content-Type":"text/plain;charset=UTF-8"}, body: JSON.stringify(payload), mode:"cors", credentials:"omit", cache:"no-store", keepalive:false};
   if (hs.signal) opts.signal = hs.signal;
-  return fetch(API + path, opts)
+  return fetch(root + path, opts)
     .then(function(r){
       clearTimeout(timer); hs.clear();
       if (settled) return {ok:false, status: r.status, d:null, stage:"получение ответа"};
@@ -1090,11 +1096,12 @@ function postOnce(path, body, timeoutMs){
       return {ok:false, status: late ? -1 : 0, d:null, stage:"получение ответа"};
     });
 }
-function getOnce(path, timeoutMs){
+function getOnce(path, timeoutMs, base){
   var late = false, settled = false;
   var timer = setTimeout(function(){ late = true; }, timeoutMs || 20000);
   var sep = path.indexOf("?") >= 0 ? "&" : "?";
-  var url = API + path + sep + "initData=" + encodeURIComponent(initDataValue());
+  var root = base || API;
+  var url = root + path + sep + "initData=" + encodeURIComponent(initDataValue());
   var tag = String(path || "").split("?")[0].replace(/^\//, "") || "get";
   var hs = hardStop((timeoutMs || 20000) + 5000);
   var opts = {method:"GET", mode:"cors", credentials:"omit", cache:"no-store", keepalive:false};
@@ -1120,16 +1127,25 @@ function retryOnce(res, replay){
   if (res && (res.status === 0 || res.status === -1)) return replay();
   return Promise.resolve(res);
 }
+function tryWithFallback(run){
+  return run(API).then(function(res){
+    if (API_FALLBACK && API_FALLBACK !== API && res && (res.status === 0 || res.status === -1)) return run(API_FALLBACK);
+    return res;
+  });
+}
 function postJson(path, body, timeoutMs){
-  return postOnce(path, body, timeoutMs).then(function(res){ return retryOnce(res, function(){ return postOnce(path, body, timeoutMs); }); });
+  return tryWithFallback(function(base){
+    return postOnce(path, body, timeoutMs, base).then(function(res){ return retryOnce(res, function(){ return postOnce(path, body, timeoutMs, base); }); });
+  });
 }
 function getJson(path, timeoutMs){
-  return getOnce(path, timeoutMs).then(function(res){ return retryOnce(res, function(){ return getOnce(path, timeoutMs); }); });
+  return tryWithFallback(function(base){
+    return getOnce(path, timeoutMs, base).then(function(res){ return retryOnce(res, function(){ return getOnce(path, timeoutMs, base); }); });
+  });
 }
-/* Проверка, жив ли сервер по адресу из кнопки «Рецепты». Адрес туннеля меняется, когда бот перезапускают;
-   если приложение было открыто раньше, старый адрес уже не работает — тогда просим открыть приложение заново. */
-/* [аудит 21.11.2026] Адрес сервера теперь постоянный (receptapp.dairbek.ru), «бот обновился» больше не бывает:
-   если сервер не отвечает — это связь (часто провайдер душит соединение), а не обновление бота. */
+/* Проверка, жив ли сервер по адресу из кнопки «Рецепты». */
+/* Адрес сервера постоянный (api.dairbek.ru, запасной — receptapp.dairbek.ru). «Бот обновился» больше не бывает:
+   если сервер не отвечает — это связь, а не обновление бота. */
 var STALE_TEXT = "Нет связи с сервером рецептов. Если рецепт успел приготовиться, он придёт в чат с ботом. Проверьте интернет и попробуйте ещё раз — иногда помогает переключиться с мобильного интернета на Wi‑Fi или наоборот.";
 var CONN_SHORT = "Слабая связь с сервером рецептов. Если что-то не загрузится, рецепт всё равно придёт в чат с ботом.";
 function newRid(){
@@ -1149,7 +1165,7 @@ function recoverByRid(rid, onDone){
   var started = Date.now(), fails = 0;
   function again(ms){ setTimeout(tick, ms); }
   function tick(){
-    getOnce("/status?rid=" + rid, 12000).then(function(res){
+    getJson("/status?rid=" + rid, 12000).then(function(res){
       var d = res && res.d;
       if (!res || !res.ok || !d){
         fails++;
@@ -1163,7 +1179,7 @@ function recoverByRid(rid, onDone){
       if (d.state === "unknown"){ onDone("lost", null); return; }
       if (d.state === "done" && d.payload){ onDone("payload", {code: d.code || 200, d: d.payload}); return; }
       if (d.state === "done" && d.recipe){
-        getOnce("/status?rid=" + rid + "&full=1", 15000).then(function(r2){
+        getJson("/status?rid=" + rid + "&full=1", 15000).then(function(r2){
           if (r2 && r2.ok && r2.d && r2.d.payload && isRecipeData(r2.d.payload)) onDone("payload", {code: 200, d: r2.d.payload});
           else onDone("delivered", {name: d.name || "", delivered: !!d.delivered});
         });
@@ -1182,18 +1198,26 @@ function showDelivered(info){
   showFail(info && info.delivered ? null : lastRetry, msg, "");
   var b = $("reopen"); if (b && tg && inTelegram && info && info.delivered) b.hidden = false;
 }
-function pingOnce(cb){
-  if (!API){ cb(false); return; }
+function pingOnce(cb, base){
+  var root = base || API;
+  if (!root){ cb(false); return; }
   var done = false;
   var fin = function(v){ if (done) return; done = true; clearTimeout(t); cb(v); };
   var t = setTimeout(function(){ fin(false); }, 10000);
   try {
-    fetch(API + "/ping?t=" + Date.now(), {method:"GET", mode:"cors", credentials:"omit", cache:"no-store", keepalive:false})
+    fetch(root + "/ping?t=" + Date.now(), {method:"GET", mode:"cors", credentials:"omit", cache:"no-store", keepalive:false})
       .then(function(r){ fin(r.status === 200); }, function(){ fin(false); });
   } catch (e) { fin(false); }
 }
 function pingApi(cb){
-  pingOnce(function(alive){ if (alive) cb(true); else pingOnce(cb); });
+  pingOnce(function(alive){
+    if (alive) { cb(true); return; }
+    pingOnce(function(alive2){
+      if (alive2) { cb(true); return; }
+      if (API_FALLBACK && API_FALLBACK !== API) pingOnce(cb, API_FALLBACK);
+      else cb(false);
+    });
+  });
 }
 /* Обязательная подписка на канал: сервер отвечает 403 not_subscribed — показываем окно со ссылкой и проверкой. */
 var subUrl = "https://t.me/Naturalnie_Masla", subRetry = null, subBusy = false;
