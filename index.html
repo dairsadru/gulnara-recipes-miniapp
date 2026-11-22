@@ -645,21 +645,17 @@ var PEOPLES = ["аварская","даргинская","кумыкская","�
 var KCAL = [["any","Неважно","любая калорийность"],["lt300","Лёгкое","до 300 ккал"],["300_500","Обычное","300–500 ккал"],["gt500","Сытное","от 500 ккал"]];
 var state = {cuisine:"Любая", people:"", kcal:"any", healthy:false};
 try { state.healthy = localStorage.getItem("gul_healthy") === "1"; } catch (_) {}
-// initData уходит только на наши адреса API или быстрый туннель Cloudflare, не на чужие домены.
-var API = "", apiParam = new URLSearchParams(location.search).get("api");
+// Подписанные данные Telegram отправляются на два постоянных адреса Mini App.
 var DIRECT_API = "https://api.dairbek.ru";
 var CF_API = "https://receptapp.dairbek.ru";
-function allowedApi(href){
+function apiOrigin(value){
   try {
-    var u = new URL(href);
-    return u.protocol === "https:" && (u.hostname === "api.dairbek.ru" || u.hostname === "receptapp.dairbek.ru" || /^[a-z0-9-]+\.trycloudflare\.com$/.test(u.hostname));
-  } catch (_) { return false; }
+    var origin = new URL(value).origin;
+    return origin === DIRECT_API || origin === CF_API ? origin : "";
+  } catch (_) { return ""; }
 }
-if (apiParam && allowedApi(apiParam)) API = apiParam.replace(/\/$/, "");
-if (!API && location.protocol === "https:" && (location.hostname === "api.dairbek.ru" || location.hostname === "receptapp.dairbek.ru")) API = location.origin;
-var API_FALLBACK = "";
-if (API === DIRECT_API) API_FALLBACK = CF_API;
-else if (API === CF_API) API_FALLBACK = DIRECT_API;
+var API = apiOrigin(new URLSearchParams(location.search).get("api")) || apiOrigin(location.origin);
+var API_FALLBACK = API === DIRECT_API ? CF_API : API === CF_API ? DIRECT_API : "";
 var $ = function(id){ return document.getElementById(id); };
 
 /* ---------- Telegram: тема и безопасные зоны ---------- */
@@ -1075,14 +1071,14 @@ function postOnce(path, body, timeoutMs, base){
   var payload = Object.assign({}, body || {}, {initData: initDataValue()});
   var tag = String(path || "").replace(/^\//, "") || "post";
   var root = base || API;
-  var opts = {method:"POST", headers:{"Content-Type":"text/plain;charset=UTF-8"}, body: JSON.stringify(payload), mode:"cors", credentials:"omit", cache:"no-store", keepalive:false};
+  var opts = {method:"POST", headers:{"Content-Type":"text/plain;charset=UTF-8"}, body: JSON.stringify(payload), mode:"cors", credentials:"omit", cache:"no-store", keepalive:false, redirect:"error"};
   if (hs.signal) opts.signal = hs.signal;
   return fetch(root + path, opts)
     .then(function(r){
-      clearTimeout(timer); hs.clear();
       if (settled) return {ok:false, status: r.status, d:null, stage:"получение ответа"};
       settled = true;
       return parseJsonRes(r).then(function(res){
+        clearTimeout(timer); hs.clear();
         if (late && !(res && (isRecipeData(res.d) || (res.d && (res.d.clarify || res.d.message || res.d.ok || res.d.image || res.d.pending))))){
           return {ok:false, status: -1, d: res && res.d, stage:"ожидание ответа"};
         }
@@ -1104,14 +1100,14 @@ function getOnce(path, timeoutMs, base){
   var url = root + path + sep + "initData=" + encodeURIComponent(initDataValue());
   var tag = String(path || "").split("?")[0].replace(/^\//, "") || "get";
   var hs = hardStop((timeoutMs || 20000) + 5000);
-  var opts = {method:"GET", mode:"cors", credentials:"omit", cache:"no-store", keepalive:false};
+  var opts = {method:"GET", mode:"cors", credentials:"omit", cache:"no-store", keepalive:false, redirect:"error"};
   if (hs.signal) opts.signal = hs.signal;
   return fetch(url, opts)
     .then(function(r){
-      clearTimeout(timer); hs.clear();
       if (settled) return {ok:false, status: r.status, d:null, stage:"получение ответа"};
       settled = true;
       return parseJsonRes(r).then(function(res){
+        clearTimeout(timer); hs.clear();
         if (late && !(res && res.d)) return {ok:false, status: -1, d:null, stage:"ожидание ответа"};
         return res;
       });
@@ -1146,8 +1142,8 @@ function getJson(path, timeoutMs){
 /* Проверка, жив ли сервер по адресу из кнопки «Рецепты». */
 /* Адрес сервера постоянный (api.dairbek.ru, запасной — receptapp.dairbek.ru). «Бот обновился» больше не бывает:
    если сервер не отвечает — это связь, а не обновление бота. */
-var STALE_TEXT = "Нет связи с сервером рецептов. Если рецепт успел приготовиться, он придёт в чат с ботом. Проверьте интернет и попробуйте ещё раз — иногда помогает переключиться с мобильного интернета на Wi‑Fi или наоборот.";
-var CONN_SHORT = "Слабая связь с сервером рецептов. Если что-то не загрузится, рецепт всё равно придёт в чат с ботом.";
+var STALE_TEXT = "Нет связи с сервером рецептов. Проверьте интернет и нажмите «Попробовать ещё раз», чтобы проверить этот же запрос.";
+var CONN_SHORT = "Связь с сервером рецептов нестабильна. При обрыве приложение попробует восстановить ответ.";
 function newRid(){
   try {
     var a = new Uint8Array(12); (window.crypto || window.msCrypto).getRandomValues(a);
@@ -1157,46 +1153,81 @@ function newRid(){
   }
 }
 function lostResponse(res){
-  return !res || res.status === 0 || res.status === -1 || (res.status === 200 && !res.d);
+  return !res || res.status <= 0 || (res.ok && (!res.d || res.d.pending)) ||
+    (res.status === 200 && !res.d) ||
+    (!(res.d && res.d.message) && [408, 502, 503, 504, 520, 521, 522, 523, 524, 530].indexOf(res.status) >= 0);
 }
-/* Ответ не дошёл до телефона: коротко спрашиваем сервер, что с запросом (rid).
-   kind: "payload" — готовый ответ сервера; "delivered" — рецепт готов и ушёл в чат; "lost" — запрос не дошёл; "unknown" — связи нет. */
-function recoverByRid(rid, onDone){
-  var started = Date.now(), fails = 0;
-  function again(ms){ setTimeout(tick, ms); }
+function getTaskStatus(rid, full){
+  var path = "/status?rid=" + encodeURIComponent(rid) + (full ? "&full=1" : "");
+  return getOnce(path, 6000, API).then(function(res){
+    return API_FALLBACK && lostResponse(res) ? getOnce(path, 6000, API_FALLBACK) : res;
+  });
+}
+function recoverByRid(rid, current){
+  var started = Date.now(), failures = 0;
+  function wait(ms){ return new Promise(function(resolve){ setTimeout(resolve, ms); }).then(tick); }
+  function payload(d){
+    var code = d.code || 200;
+    return {ok:code >= 200 && code < 300, status:code, d:d.payload};
+  }
   function tick(){
-    getJson("/status?rid=" + rid, 12000).then(function(res){
+    if (!current()) return {recovery:"cancelled"};
+    return getTaskStatus(rid, false).then(function(res){
+      if (!current()) return {recovery:"cancelled"};
       var d = res && res.d;
       if (!res || !res.ok || !d){
-        fails++;
-        if (fails >= 4 || Date.now() - started > 120000){ onDone("unknown", null); return; }
-        again(2500); return;
+        if (res && res.status === 401) return res;
+        if (++failures >= 3 || Date.now() - started > 120000) return {recovery:"unavailable"};
+        return wait(1500);
       }
+      failures = 0;
       if (d.state === "working"){
-        if (Date.now() - started > 150000){ onDone("unknown", null); return; }
-        again(3000); return;
+        if (Date.now() - started > 150000) return {recovery:"working"};
+        return wait(3000);
       }
-      if (d.state === "unknown"){ onDone("lost", null); return; }
-      if (d.state === "done" && d.payload){ onDone("payload", {code: d.code || 200, d: d.payload}); return; }
+      if (d.state === "unknown") return {recovery:"missing"};
+      if (d.state === "done" && d.payload) return payload(d);
       if (d.state === "done" && d.recipe){
-        getJson("/status?rid=" + rid + "&full=1", 15000).then(function(r2){
-          if (r2 && r2.ok && r2.d && r2.d.payload && isRecipeData(r2.d.payload)) onDone("payload", {code: 200, d: r2.d.payload});
-          else onDone("delivered", {name: d.name || "", delivered: !!d.delivered});
+        return getTaskStatus(rid, true).then(function(full){
+          if (full && full.ok && full.d && isRecipeData(full.d.payload)) return payload(full.d);
+          return {recovery:"ready"};
         });
-        return;
       }
-      onDone("unknown", null);
+      return {recovery:"unavailable"};
     });
   }
-  tick();
+  return tick();
 }
-function showDelivered(info){
-  var name = info && info.name ? "«" + String(info.name).slice(0, 80) + "» " : "";
-  var msg = (info && info.delivered)
-    ? "Рецепт " + name + "готов ✅ Показать его здесь не получилось — связь оборвалась. Он уже отправлен вам в чат с ботом: нажмите «Закрыть приложение», чтобы его открыть."
-    : "Рецепт " + name + "готов, но показать его здесь не получилось — связь оборвалась. Нажмите «Попробовать ещё раз».";
-  showFail(info && info.delivered ? null : lastRetry, msg, "");
-  var b = $("reopen"); if (b && tg && inTelegram && info && info.delivered) b.hidden = false;
+function submitRecipeTask(path, body, timeout, seq, resume){
+  function current(){ return seq === reqSeq; }
+  function recover(){
+    if (!current()) return Promise.resolve({recovery:"cancelled"});
+    setBusy(true, "Проверяю, готов ли результат…");
+    return recoverByRid(body.rid, current);
+  }
+  function send(base, backup){
+    if (!current()) return Promise.resolve({recovery:"cancelled"});
+    return postOnce(path, body, timeout, base).then(function(res){
+      if (!lostResponse(res)) return res;
+      return recover().then(function(status){
+        // Оба адреса ведут к одному API. Даже при повторе идентификатор сохраняется.
+        return status.recovery === "missing" && backup ? send(backup, "") : status;
+      });
+    });
+  }
+  if (resume) return recover().then(function(res){
+    return res.recovery === "missing" ? send(API, API_FALLBACK) : res;
+  });
+  return send(API, API_FALLBACK);
+}
+function showTaskRecovery(retry, status){
+  if (status === "cancelled") return;
+  var text = {
+    missing: "Ответ на запрос пока не найден. Нажмите «Попробовать ещё раз», чтобы продолжить.",
+    ready: "Результат готов, но карточку пока не удалось загрузить. Нажмите «Попробовать ещё раз».",
+    working: "Сервер ещё готовит результат. Нажмите «Попробовать ещё раз», чтобы проверить готовность."
+  }[status] || STALE_TEXT;
+  showFail(retry, text, "получение ответа");
 }
 function pingOnce(cb, base){
   var root = base || API;
@@ -1246,7 +1277,7 @@ function failAfterCheck(retryFn, res, lostText, stage){
   }
   if (!res || res.status !== 0){ showFail(retryFn, errorMessage(res), stage || "ответ сервера"); return; }
   pingApi(function(alive){
-    if (alive){ showFail(retryFn, lostText || "Запрос не дошёл до сервера: прервалась связь. Попробуйте ещё раз.", stage || "получение ответа"); return; }
+    if (alive){ showFail(retryFn, lostText || "Не удалось получить ответ. Попробуйте ещё раз.", stage || "получение ответа"); return; }
     showFail(retryFn, STALE_TEXT, stage || "получение ответа");
     var b = $("reopen"); if (b && tg && inTelegram) b.hidden = false;
   });
@@ -1261,8 +1292,7 @@ function checkApiAlive(){
   });
 }
 
-function requestRecipe(action, extra, text){
-  var retry = function(){ requestRecipe(action, extra, text); };
+function requestRecipe(action, extra, text, previousBody){
   if (action === "recipe") setSummary(text);
   setArchiveMode(false);
   if (view !== "result") showView("result");
@@ -1271,13 +1301,15 @@ function requestRecipe(action, extra, text){
   setBusy(true, "Подбираю рецепт…");
   startLoader(LOAD_TEXT);
   haptic("select");
-  var rid = newRid();   // [аудит 21.11.2026] ключ запроса: повтор не готовит рецепт второй раз, по нему же проверяем готовность
-  var body = Object.assign({cuisine:state.cuisine, people:state.people, kcal:state.kcal,
-    healthy: !!state.healthy, deliver: true, a: action, rid: rid}, extra || {});
-  function handle(res, recovered){
+  var body = previousBody || Object.assign({cuisine:state.cuisine, people:state.people, kcal:state.kcal,
+    healthy: !!state.healthy, deliver: true, a: action, rid: newRid()}, extra || {});
+  var retry = function(){ requestRecipe(action, extra, text, body); };
+  var retryFresh = function(){ requestRecipe(action, extra, text); };
+  function handle(res){
     if (seq !== reqSeq) return;
     setBusy(false);
     try {
+      if (res && res.recovery){ showTaskRecovery(retry, res.recovery); return; }
       if (res && res.d && res.d.nonce) clarificationNonce = String(res.d.nonce);
       if (isRecipeData(res && res.d) && !(res.d.clarify && res.d.message)){
         clarificationNonce="";
@@ -1285,39 +1317,21 @@ function requestRecipe(action, extra, text){
       } else if (res && res.ok && res.d && res.d.clarify && res.d.message){
         showClarification(res.d);
       } else if (res && res.ok && res.d && res.d.message){
-        clarificationNonce=""; showClarification({message: res.d.message});   // ответ без рецепта (например, «это не еда»)
+        clarificationNonce=""; showClarification({message: res.d.message});
       } else if (res && res.d && res.d.error === "stale_clarification"){
         clarificationNonce=""; showFail(null, res.d.message, "уточнение");
-      } else if (!recovered && lostResponse(res)){
-        // ответ не дошёл: спрашиваем сервер по rid, готов ли рецепт (он уже мог уйти в чат)
-        reportClientError("recipe-lost", {message: "status " + (res && res.status)}, {status: res && res.status});
-        setBusy(true, "Проверяю, готов ли рецепт…");
-        lastRetry = retry;
-        recoverByRid(rid, function(kind, data){
-          if (seq !== reqSeq) return;
-          reportClientError("recipe-recover", {message: kind});
-          if (kind === "payload"){ handle({ok: data.code === 200, status: data.code, d: data.d}, true); return; }
-          setBusy(false);
-          if (kind === "delivered"){ showDelivered(data); return; }
-          if (kind === "lost"){ failAfterCheck(retry, {ok:false, status:0, d:null}, null, "отправка запроса"); return; }
-          showFail(retry, STALE_TEXT, "получение ответа");
-          var b = $("reopen"); if (b && tg && inTelegram) b.hidden = false;
-        });
       } else {
         reportClientError("recipe-empty", {message: "status " + (res && res.status) + " ok=" + !!(res && res.ok)}, {status: res && res.status});
-        failAfterCheck(retry, res, null, (res && res.stage) || "получение ответа");
+        failAfterCheck(retryFresh, res, null, (res && res.stage) || "получение ответа");
       }
     } catch (e) {
       reportClientError("recipe-handle", e);
-      if (isRecipeData(res && res.d)){
-        try { showRecipe(res.d, seq); return; } catch (e2) { reportClientError("render", e2); }
-      }
       failAfterCheck(retry, res, null, "показ рецепта");
     }
   }
-  postJson("/recipe", body, 90000).then(function(res){ handle(res, false); }, function(err){
+  submitRecipeTask("/recipe", body, 90000, seq, !!previousBody).then(handle, function(err){
     reportClientError("recipe-fetch", err);
-    handle({ok:false, status:0, d:null, stage:"получение ответа"}, false);
+    handle({recovery:"unavailable"});
   });
 }
 
@@ -1370,9 +1384,8 @@ function downscaleFile(file, cb){
   });
 }
 
-function sendPhoto(dataUrl){
+function sendPhoto(dataUrl, previousBody){
   lastPhotoData = dataUrl;
-  var retry = function(){ if (lastPhotoData) sendPhoto(lastPhotoData); else openCamera(); };
   if (!dataUrl){ toast("Не получилось прочитать фото. Снимите ещё раз.", true); return; }
   setSummary("По фото");
   setArchiveMode(false);
@@ -1382,45 +1395,28 @@ function sendPhoto(dataUrl){
   setBusy(true, "Смотрю фото…");
   startLoader(LOAD_PHOTO);
   haptic("select");
-  var rid = newRid();
-  var body = {image: dataUrl, cuisine:state.cuisine, people:state.people, kcal:state.kcal,
-    healthy: !!state.healthy, deliver: true, rid: rid};
-  postJson("/photo", body, 180000).then(function(res){
+  var body = previousBody || {image: dataUrl, cuisine:state.cuisine, people:state.people, kcal:state.kcal,
+    healthy: !!state.healthy, deliver: true, rid: newRid()};
+  var retry = function(){ sendPhoto(dataUrl, body); };
+  var retryFresh = function(){ sendPhoto(dataUrl); };
+  submitRecipeTask("/photo", body, 180000, seq, !!previousBody).then(function(res){
     if (seq !== reqSeq) return;
     setBusy(false);
     try {
+      if (res && res.recovery){ showTaskRecovery(retry, res.recovery); return; }
       if (isRecipeData(res && res.d)){ showRecipe(res.d, seq); return; }
-      if (lostResponse(res)){
-        // [аудит 21.11.2026] ответ не дошёл: проверяем по rid, не готов ли рецепт по фото (он уже мог уйти в чат)
-        setBusy(true, "Проверяю, готов ли рецепт…");
-        lastRetry = retry;
-        recoverByRid(rid, function(kind, data){
-          if (seq !== reqSeq) return;
-          setBusy(false);
-          reportClientError("photo-recover", {message: kind});
-          if (kind === "payload" && data && isRecipeData(data.d)){ showRecipe(data.d, seq); return; }
-          if (kind === "payload" && data && data.d && data.d.message && data.code === 200){ showPhotoAsk(data.d.message); return; }
-          if (kind === "delivered"){ showDelivered(data); return; }
-          showFail(retry, "Фото не дошло до сервера: связь оборвалась. Можно отправить это фото прямо в чат с ботом — рецепт придёт туда.", "отправка фото");
-          var b = $("reopen"); if (b && tg && inTelegram) b.hidden = false;
-        });
-        return;
-      }
-      if (!res.ok){ failAfterCheck(retry, res, "Фото не дошло до сервера: прервалась связь. Попробуйте ещё раз.", (res && res.stage) || "получение ответа"); return; }
+      if (!res || !res.ok){ failAfterCheck(retryFresh, res, null, (res && res.stage) || "получение ответа"); return; }
       if (res.d && res.d.message){ showPhotoAsk(res.d.message); return; }
-      showFail(retry, "", "фото");
+      showFail(retryFresh, "", "фото");
     } catch (e) {
       reportClientError("photo-handle", e);
-      if (isRecipeData(res && res.d)){
-        try { showRecipe(res.d, seq); return; } catch (e2) { reportClientError("render", e2); }
-      }
-      failAfterCheck(retry, res, "Фото не дошло до сервера: прервалась связь. Попробуйте ещё раз.", "показ рецепта");
+      failAfterCheck(retry, res, null, "показ рецепта");
     }
   }, function(err){
     if (seq !== reqSeq) return;
     setBusy(false);
     reportClientError("photo-fetch", err);
-    failAfterCheck(retry, {ok:false, status:0, d:null, stage:"получение ответа"}, "Фото не дошло до сервера: прервалась связь. Попробуйте ещё раз.", "получение ответа");
+    showTaskRecovery(retry, "unavailable");
   });
 }
 
