@@ -1404,7 +1404,11 @@ function sendPhoto(dataUrl, previousBody){
     setBusy(false);
     try {
       if (res && res.recovery){ showTaskRecovery(retry, res.recovery); return; }
-      if (isRecipeData(res && res.d)){ showRecipe(res.d, seq); return; }
+      if (isRecipeData(res && res.d)){ clarificationNonce=""; showRecipe(res.d, seq); return; }
+      if (res && res.ok && res.d && res.d.clarify && res.d.message){
+        clarificationNonce=String(res.d.nonce || "");
+        showClarification(res.d); return;
+      }
       if (!res || !res.ok){ failAfterCheck(retryFresh, res, null, (res && res.stage) || "получение ответа"); return; }
       if (res.d && res.d.message){ showPhotoAsk(res.d.message); return; }
       showFail(retryFresh, "", "фото");
